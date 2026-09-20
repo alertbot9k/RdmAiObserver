@@ -25,6 +25,7 @@ public class MainWindow : Window, IDisposable
     private bool recordingHistoryLoaded;
     private bool isRecording;
     private DateTime nextAutomaticCaptureUtc = DateTime.MinValue;
+    private ReplayAnalysis? replayAnalysis;
 
     public MainWindow(Plugin plugin, string goatImagePath)
         : base("FFXIV Observer##ObserverMain")
@@ -145,6 +146,12 @@ public class MainWindow : Window, IDisposable
             LoadLatestRecording();
         }
 
+        ImGui.SameLine();
+        if (ImGui.Button("Analyze Recording"))
+        {
+            AnalyzeLatestRecording();
+        }
+
         ImGui.Spacing();
         ImGui.TextUnformatted("FFXIV Observer - Read Only");
         var source = scenario != null
@@ -152,6 +159,16 @@ public class MainWindow : Window, IDisposable
             : replayState != null ? "saved replay state" : "live game state";
         ImGui.TextUnformatted($"Source: {source}");
         ImGui.TextUnformatted(replayMessage);
+
+        if (replayAnalysis != null && ImGui.CollapsingHeader("Offline replay analysis"))
+        {
+            ImGui.TextUnformatted($"Snapshots: {replayAnalysis.SnapshotCount} ({replayAnalysis.ActiveSnapshotCount} active)");
+            ImGui.TextUnformatted($"Observed actions: {replayAnalysis.InferredActionCount}");
+            ImGui.TextUnformatted($"Recommendation changes: {replayAnalysis.RecommendationChanges} ({replayAnalysis.ChangesPerMinute:F1}/minute)");
+            ImGui.TextUnformatted($"Most common advice: {replayAnalysis.MostCommonRecommendation}");
+            ImGui.TextUnformatted($"Most common action: {replayAnalysis.MostCommonAction}");
+        }
+
         ImGui.Separator();
 
         var recommendation = DecisionEngine.Evaluate(state);
@@ -436,6 +453,34 @@ public class MainWindow : Window, IDisposable
         catch (Exception exception)
         {
             replayMessage = $"Could not load recording: {exception.Message}";
+        }
+    }
+
+    private void AnalyzeLatestRecording()
+    {
+        try
+        {
+            if (!File.Exists(RecordingFilePath))
+            {
+                replayMessage = "No automatic recordings yet.";
+                return;
+            }
+
+            var savedStates = JsonSerializer.Deserialize<List<RecordedGameState>>(
+                File.ReadAllText(RecordingFilePath), JsonOptions);
+
+            if (savedStates == null || savedStates.Count == 0)
+            {
+                replayMessage = "No automatic recordings found.";
+                return;
+            }
+
+            replayAnalysis = ReplayAnalyzer.Analyze(savedStates);
+            replayMessage = $"Analyzed {savedStates.Count} snapshots with the current decision rules.";
+        }
+        catch (Exception exception)
+        {
+            replayMessage = $"Could not analyze recording: {exception.Message}";
         }
     }
 }
