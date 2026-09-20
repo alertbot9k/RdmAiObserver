@@ -43,6 +43,7 @@ public static class DecisionEngine
         var bestTarget = TargetEvaluator.FindBest(state);
         var crowdControl = FindStatus(player.Statuses, PurifiableStatuses);
         var selfGuarding = HasStatus(player.Statuses, "Guard");
+        var selfInvincible = HasStatus(player.Statuses, "Invincibility");
         var targetGuarding = HasStatus(state.Target?.Statuses, "Guard");
         var targetInvincible = HasStatus(state.Target?.Statuses, "Invincibility");
         var targetHasMonomachy = HasStatus(state.Target?.Statuses, "Monomachy");
@@ -55,6 +56,9 @@ public static class DecisionEngine
 
         if (player.Hp == 0)
             return Recommend(DecisionPriority.Wait, "Wait for respawn", "The player is incapacitated; combat recommendations are paused.");
+
+        if (selfInvincible)
+            return Recommend(DecisionPriority.Wait, "Regroup while protected", "Spawn protection is active; rejoin nearby allies before committing offensive resources.");
 
         if (selfGuarding)
             return Recommend(DecisionPriority.Defend, "Hold Guard", "Guard is active; avoid canceling its protection with another action.");
@@ -99,6 +103,9 @@ public static class DecisionEngine
 
         if (state.Target == null)
         {
+            if (nearbyEnemies >= 2 && nearbyAllies == 0)
+                return Recommend(DecisionPriority.Reposition, "Disengage toward your team", $"{nearbyEnemies} opponents are nearby and no living ally is inside 15 yalms.");
+
             return bestTarget == null
                 ? Recommend(DecisionPriority.Observe, "Regroup and scan", "No opponent is currently inside 25 yalms.")
                 : Recommend(DecisionPriority.Target, $"Target {bestTarget.Name}", DescribeTarget(bestTarget));
@@ -106,6 +113,14 @@ public static class DecisionEngine
 
         // Validate the target before recommending a proc. Prefulgence, Vice of
         // Thorns, and Grand Impact do not pierce Guard and should not be wasted.
+        if (targetHp is null or <= 0f)
+        {
+            return bestTarget != null &&
+                   !string.Equals(state.Target.Name, bestTarget.Name, StringComparison.Ordinal)
+                ? Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", $"{state.Target.Name} is not a live combat target; {DescribeTarget(bestTarget)}")
+                : Recommend(DecisionPriority.Target, "Find a live target", $"{state.Target.Name} cannot currently be pressured.");
+        }
+
         if (targetInvincible)
         {
             return bestTarget != null &&
@@ -116,6 +131,10 @@ public static class DecisionEngine
 
         if (targetGuarding)
         {
+            if (nearbyEnemies >= 2 && nearbyAllies == 0 &&
+                !enchantedRiposte && !enchantedZwerchhau)
+                return Recommend(DecisionPriority.Reposition, "Disengage toward your team", $"{state.Target.Name} is Guarding while {nearbyEnemies} opponents are nearby and no ally is in support range.");
+
             if (state.Target.Distance > 5f &&
                 (enchantedRiposte || enchantedZwerchhau) && state.Target.Distance <= 25f)
                 return Recommend(DecisionPriority.Reposition, "Close distance to continue the melee combo", "The active melee chain ignores Guard, but the target is outside its 5-yalm range.");
@@ -133,6 +152,9 @@ public static class DecisionEngine
 
             return Recommend(DecisionPriority.Reposition, "Do not spend ranged burst", $"{state.Target.Name} is Guarding and the Guard-piercing melee chain is unavailable; preserve procs or switch targets.");
         }
+
+        if (state.Target.Distance > 25f)
+            return Recommend(DecisionPriority.Reposition, "Move into spell range", $"{state.Target.Name} is {state.Target.Distance:F0} yalms away; preserve ready procs until the target is within 25 yalms.");
 
         if (prefulgenceReady && state.Target != null)
             return Recommend(DecisionPriority.Burst, "Use Prefulgence", "Prefulgence Ready is active; use the instant damage and party healing before it expires.");
@@ -163,6 +185,9 @@ public static class DecisionEngine
         {
             return Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", DescribeTarget(bestTarget));
         }
+
+        if (nearbyEnemies >= 2 && nearbyAllies == 0)
+            return Recommend(DecisionPriority.Reposition, "Disengage toward your team", $"{nearbyEnemies} opponents are inside 15 yalms and no living ally is nearby; avoid spending a new burst window alone.");
 
         var safeBurstWindow = hp >= 70f && player.Mp >= 4000 && nearbyEnemies <= 2 && nearbyAllies >= 1;
 
@@ -197,9 +222,6 @@ public static class DecisionEngine
 
         if (state.Target.Distance <= 5f && hp >= 60f && nearbyEnemies <= 2)
             return Recommend(DecisionPriority.Burst, "Continue the melee combo", $"The target is in melee range with {nearbyEnemies} nearby opponent(s) and your HP is stable.");
-
-        if (state.Target.Distance > 25f)
-            return Recommend(DecisionPriority.Reposition, "Move into spell range", $"{state.Target.Name} is {state.Target.Distance:F0} yalms away.");
 
         if (nearbyEnemies >= 3)
             return Recommend(DecisionPriority.Reposition, "Kite toward your team", $"{nearbyEnemies} opponents are inside 15 yalms; avoid an isolated melee commitment.");
@@ -278,7 +300,8 @@ public static class DecisionEngine
         var count = 0;
         foreach (var character in state.NearbyCharacters)
         {
-            if (character.Distance <= range && !partyNames.Contains(character.Name))
+            if (character.Distance <= range && character.Hp > 0 && character.MaxHp > 0 &&
+                !partyNames.Contains(character.Name))
                 count++;
         }
 

@@ -147,6 +147,36 @@ public static class ScenarioLibrary
                 playerStatus: "Prefulgence Ready", targetStatus: "Guard"),
             "Do not spend ranged burst"),
         new(
+            "Protected respawn regroup",
+            CreateState(playerHp: 58500, targetHp: 50000,
+                playerStatus: "Invincibility"),
+            "Regroup while protected"),
+        new(
+            "Preserve proc outside spell range",
+            CreateState(playerHp: 50000, targetHp: 50000,
+                playerStatus: "Prefulgence Ready", targetDistance: 30f),
+            "Move into spell range"),
+        new(
+            "Replace dead selected target",
+            CreateState(playerHp: 50000, targetHp: 0, nearbyEnemyCount: 2),
+            "Switch to Enemy 2"),
+        new(
+            "No target while isolated",
+            CreateState(playerHp: 50000, targetHp: null, nearbyEnemyCount: 2,
+                allyNearby: false),
+            "Disengage toward your team"),
+        new(
+            "Do not open burst while isolated",
+            CreateState(playerHp: 50000, targetHp: 50000, nearbyEnemyCount: 2,
+                readyActions: new[] { "Embolden", "Resolution" }, allyNearby: false),
+            "Disengage toward your team"),
+        new(
+            "Do not start Guard-piercing melee while isolated",
+            CreateState(playerHp: 50000, targetHp: 50000, targetStatus: "Guard",
+                nearbyEnemyCount: 2, readyActions: new[] { "Enchanted Riposte" },
+                allyNearby: false),
+            "Disengage toward your team"),
+        new(
             "Incapacitated",
             CreateState(playerHp: 0, targetHp: 30000),
             "Wait for respawn")
@@ -175,7 +205,7 @@ public static class ScenarioLibrary
         ValidateActionInference(failures);
         ValidateModeDetection(failures);
         ValidateReplayAnalyzer(failures);
-        return new ScenarioValidation(Scenarios.Length + 14, failures);
+        return new ScenarioValidation(Scenarios.Length + 17, failures);
     }
 
     private static void ValidateStabilizer(List<string> failures)
@@ -293,6 +323,42 @@ public static class ScenarioLibrary
             capturedAt);
         if (report.Timeline.Count != 1 || report.Timeline[0].Kind != "Recommendation")
             failures.Add("Replay report did not produce its initial recommendation event.");
+
+        var protectedAnalysis = ReplayAnalyzer.Analyze(new List<RecordedGameState>
+        {
+            new()
+            {
+                CapturedAtUtc = capturedAt,
+                State = CreateState(playerHp: 58500, targetHp: 50000,
+                    playerStatus: "Invincibility")
+            }
+        });
+        if (protectedAnalysis.ProtectedSnapshotCount != 1 || protectedAnalysis.EngagedSnapshotCount != 0)
+            failures.Add("Replay analyzer treated spawn protection as active engagement.");
+
+        var isolatedAnalysis = ReplayAnalyzer.Analyze(new List<RecordedGameState>
+        {
+            new()
+            {
+                CapturedAtUtc = capturedAt,
+                State = CreateState(playerHp: 50000, targetHp: null,
+                    nearbyEnemyCount: 2, allyNearby: false)
+            }
+        });
+        if (isolatedAnalysis.IsolatedSnapshotCount != 1)
+            failures.Add("Replay analyzer missed an isolated two-opponent state.");
+
+        var rangeAnalysis = ReplayAnalyzer.Analyze(new List<RecordedGameState>
+        {
+            new()
+            {
+                CapturedAtUtc = capturedAt,
+                State = CreateState(playerHp: 50000, targetHp: 50000,
+                    targetDistance: 30f)
+            }
+        });
+        if (rangeAnalysis.OutOfRangeTargetSnapshotCount != 1)
+            failures.Add("Replay analyzer missed an out-of-range selected target.");
     }
 
     private static GameState CreateState(
@@ -303,7 +369,8 @@ public static class ScenarioLibrary
         string? targetStatus = null,
         float targetDistance = 12f,
         int nearbyEnemyCount = 1,
-        string[]? readyActions = null)
+        string[]? readyActions = null,
+        bool allyNearby = true)
     {
         var state = new GameState
         {
@@ -320,10 +387,17 @@ public static class ScenarioLibrary
             },
             Party = new List<PartyMemberSnapshot>
             {
-                new() { Name = "Blackjet Morgul", Job = "red mage", Hp = playerHp, MaxHp = 58500 },
-                new() { Name = "Ally One", Job = "warrior", Hp = 65000, MaxHp = 65000, Distance = 8f }
+                new() { Name = "Blackjet Morgul", Job = "red mage", Hp = playerHp, MaxHp = 58500 }
             }
         };
+
+        if (allyNearby)
+        {
+            state.Party.Add(new PartyMemberSnapshot
+            {
+                Name = "Ally One", Job = "warrior", Hp = 65000, MaxHp = 65000, Distance = 8f
+            });
+        }
 
         foreach (var actionName in KnownActions)
         {

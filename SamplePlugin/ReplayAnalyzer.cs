@@ -60,7 +60,7 @@ public static class ReplayAnalyzer
             }
         }
 
-        return new ReplayReport(2, generatedAtUtc, Analyze(snapshots), events);
+        return new ReplayReport(3, generatedAtUtc, Analyze(snapshots), events);
     }
 
     public static ReplayAnalysis Analyze(IReadOnlyList<RecordedGameState> snapshots)
@@ -79,6 +79,9 @@ public static class ReplayAnalyzer
         var respawns = 0;
         var lowHpSnapshots = 0;
         var noTargetSnapshots = 0;
+        var protectedSnapshots = 0;
+        var isolatedSnapshots = 0;
+        var outOfRangeTargetSnapshots = 0;
         var guardingTargetSnapshots = 0;
         var consumedProcs = 0;
         var expiredProcs = 0;
@@ -115,8 +118,18 @@ public static class ReplayAnalyzer
                 lowestHpPercent = Math.Min(lowestHpPercent, hpPercent);
                 if (hpPercent <= 30f)
                     lowHpSnapshots++;
-                var engaged = !HasStatus(player.Statuses, "Invincibility") &&
-                              (snapshot.State.Target?.Hp is > 0 || HasNearbyEnemy(snapshot.State, 25f));
+                var isProtected = HasStatus(player.Statuses, "Invincibility");
+                var nearbyEnemies = CountNearbyEnemies(snapshot.State, 15f);
+                var nearbyAllies = CountNearbyAllies(snapshot.State, 15f);
+                if (isProtected)
+                    protectedSnapshots++;
+                if (!isProtected && nearbyEnemies >= 2 && nearbyAllies == 0)
+                    isolatedSnapshots++;
+                if (!isProtected && snapshot.State.Target?.Distance > 25f)
+                    outOfRangeTargetSnapshots++;
+
+                var engaged = !isProtected &&
+                              (snapshot.State.Target?.Hp is > 0 || CountNearbyEnemies(snapshot.State, 25f) > 0);
                 if (engaged)
                 {
                     engagedSnapshots++;
@@ -201,6 +214,9 @@ public static class ReplayAnalyzer
             respawns,
             lowHpSnapshots,
             noTargetSnapshots,
+            protectedSnapshots,
+            isolatedSnapshots,
+            outOfRangeTargetSnapshots,
             guardingTargetSnapshots,
             consumedProcs,
             expiredProcs,
@@ -261,20 +277,34 @@ public static class ReplayAnalyzer
                action.Evidence.StartsWith("MP fell by", StringComparison.Ordinal);
     }
 
-    private static bool HasNearbyEnemy(GameState state, float range)
+    private static int CountNearbyEnemies(GameState state, float range)
     {
         var partyNames = new HashSet<string>(StringComparer.Ordinal);
         foreach (var member in state.Party)
             partyNames.Add(member.Name);
 
+        var count = 0;
         foreach (var character in state.NearbyCharacters)
         {
             if (character.Hp > 0 && character.MaxHp > 0 && character.Distance <= range &&
                 !partyNames.Contains(character.Name))
-                return true;
+                count++;
         }
 
-        return false;
+        return count;
+    }
+
+    private static int CountNearbyAllies(GameState state, float range)
+    {
+        var count = 0;
+        foreach (var member in state.Party)
+        {
+            if (member.Hp > 0 && member.Distance <= range &&
+                !string.Equals(member.Name, state.Player?.Name, StringComparison.Ordinal))
+                count++;
+        }
+
+        return count;
     }
 
     private static bool MentionsAction(string recommendation, string action)
@@ -332,6 +362,9 @@ public sealed record ReplayAnalysis(
     int RespawnCount,
     int LowHpSnapshotCount,
     int NoTargetSnapshotCount,
+    int ProtectedSnapshotCount,
+    int IsolatedSnapshotCount,
+    int OutOfRangeTargetSnapshotCount,
     int GuardingTargetSnapshotCount,
     int ConsumedProcCount,
     int ExpiredProcCount,

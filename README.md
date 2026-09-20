@@ -11,6 +11,8 @@ move the character, select targets, or issue game commands.
 - Recommends survival, targeting, burst, combo, and positioning decisions.
 - Reacts to rapid HP loss over a rolling three-second combat window.
 - Avoids invincible targets and preserves Guard-piercing melee sequences.
+- Preserves ranged procs outside 25 yalms and avoids opening new burst windows
+  while isolated against multiple opponents.
 - Records one snapshot every two seconds for up to ten minutes.
 - Infers cooldown, proc-consumption, combo, and medium-confidence Recuperate
   events with evidence labels.
@@ -18,9 +20,9 @@ move the character, select targets, or issue game commands.
 - Conservatively identifies confirmed Crystalline Conflict recordings from
   territory or live UI evidence without guessing the duty from status names.
 - Automatically writes a compact `replay-analysis.json` timeline and summary.
-- Analyzes deaths, HP pressure, engaged-time targeting, recommendation
-  stability, and advice/action-window agreement offline.
-- Runs 42 deterministic offline checks covering decisions and infrastructure.
+- Analyzes deaths, HP pressure, isolation, spawn protection, target range,
+  engaged-time targeting, and advice/action-window agreement offline.
+- Runs 51 deterministic offline checks covering decisions and infrastructure.
 
 ## Offline workflow
 
@@ -34,6 +36,8 @@ The observer window includes these development controls:
   analysis report with the current rules.
 
 Most rule changes can therefore be evaluated without playing another match.
+The current data-derived thresholds are documented in
+[`docs/cc-recording-baseline.md`](docs/cc-recording-baseline.md).
 
 ## Build
 

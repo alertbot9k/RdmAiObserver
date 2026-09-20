@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.2
+
+- Prevented out-of-range proc recommendations beyond the 25-yalm spell limit.
+- Added anti-isolation advice when multiple opponents are nearby without allies.
+- Added protected-respawn regroup advice and dead-target replacement.
+- Excluded dead/noncombat characters from nearby-enemy pressure counts.
+- Added protection, isolation, and target-range replay metrics.
+- Documented an anonymized three-match CC calibration baseline.
+- Expanded automatic offline validation to 51 checks.
+
 ## 0.2.1
 
 - Prevented ranged procs from being recommended into Guard or Invincibility.
