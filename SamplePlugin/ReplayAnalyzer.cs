@@ -60,7 +60,7 @@ public static class ReplayAnalyzer
             }
         }
 
-        return new ReplayReport(3, generatedAtUtc, Analyze(snapshots), events);
+        return new ReplayReport(4, generatedAtUtc, Analyze(snapshots), events);
     }
 
     public static ReplayAnalysis Analyze(IReadOnlyList<RecordedGameState> snapshots)
@@ -82,6 +82,7 @@ public static class ReplayAnalyzer
         var protectedSnapshots = 0;
         var isolatedSnapshots = 0;
         var outOfRangeTargetSnapshots = 0;
+        var elixirOpportunitySnapshots = 0;
         var guardingTargetSnapshots = 0;
         var consumedProcs = 0;
         var expiredProcs = 0;
@@ -120,6 +121,7 @@ public static class ReplayAnalyzer
                     lowHpSnapshots++;
                 var isProtected = HasStatus(player.Statuses, "Invincibility");
                 var nearbyEnemies = CountNearbyEnemies(snapshot.State, 15f);
+                var nearbyEnemiesInSpellRange = CountNearbyEnemies(snapshot.State, 25f);
                 var nearbyAllies = CountNearbyAllies(snapshot.State, 15f);
                 if (isProtected)
                     protectedSnapshots++;
@@ -127,9 +129,12 @@ public static class ReplayAnalyzer
                     isolatedSnapshots++;
                 if (!isProtected && snapshot.State.Target?.Distance > 25f)
                     outOfRangeTargetSnapshots++;
+                if (!isProtected && nearbyEnemiesInSpellRange == 0 &&
+                    (hpPercent <= 70f || player.Mp <= 4000))
+                    elixirOpportunitySnapshots++;
 
                 var engaged = !isProtected &&
-                              (snapshot.State.Target?.Hp is > 0 || CountNearbyEnemies(snapshot.State, 25f) > 0);
+                              (snapshot.State.Target?.Hp is > 0 || nearbyEnemiesInSpellRange > 0);
                 if (engaged)
                 {
                     engagedSnapshots++;
@@ -217,6 +222,7 @@ public static class ReplayAnalyzer
             protectedSnapshots,
             isolatedSnapshots,
             outOfRangeTargetSnapshots,
+            elixirOpportunitySnapshots,
             guardingTargetSnapshots,
             consumedProcs,
             expiredProcs,
@@ -365,6 +371,7 @@ public sealed record ReplayAnalysis(
     int ProtectedSnapshotCount,
     int IsolatedSnapshotCount,
     int OutOfRangeTargetSnapshotCount,
+    int ElixirOpportunitySnapshotCount,
     int GuardingTargetSnapshotCount,
     int ConsumedProcCount,
     int ExpiredProcCount,

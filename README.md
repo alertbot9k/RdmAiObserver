@@ -13,6 +13,8 @@ move the character, select targets, or issue game commands.
 - Avoids invincible targets and preserves Guard-piercing melee sequences.
 - Preserves ranged procs outside 25 yalms and avoids opening new burst windows
   while isolated against multiple opponents.
+- Recommends Standard-issue Elixir only in clear recovery windows and recognizes
+  observed Elixir casts in old and new recordings.
 - Records one snapshot every two seconds for up to ten minutes.
 - Infers cooldown, proc-consumption, combo, and medium-confidence Recuperate
   events with evidence labels.
@@ -22,7 +24,7 @@ move the character, select targets, or issue game commands.
 - Automatically writes a compact `replay-analysis.json` timeline and summary.
 - Analyzes deaths, HP pressure, isolation, spawn protection, target range,
   engaged-time targeting, and advice/action-window agreement offline.
-- Runs 51 deterministic offline checks covering decisions and infrastructure.
+- Runs 57 deterministic offline checks covering decisions and infrastructure.
 
 ## Offline workflow
 

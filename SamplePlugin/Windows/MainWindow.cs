@@ -232,6 +232,7 @@ public class MainWindow : Window, IDisposable
             ImGui.TextUnformatted($"No-target time: {replayAnalysis.NoTargetPercent:F0}% of engaged snapshots ({replayAnalysis.EngagedSnapshotCount} evaluated)");
             ImGui.TextUnformatted($"Protected / isolated snapshots: {replayAnalysis.ProtectedSnapshotCount} / {replayAnalysis.IsolatedSnapshotCount}");
             ImGui.TextUnformatted($"Target beyond 25 yalms: {replayAnalysis.OutOfRangeTargetSnapshotCount} snapshots");
+            ImGui.TextUnformatted($"Safe Elixir opportunities: {replayAnalysis.ElixirOpportunitySnapshotCount}");
             ImGui.TextUnformatted($"Target Guard snapshots: {replayAnalysis.GuardingTargetSnapshotCount}");
             ImGui.TextUnformatted($"Procs consumed / expired: {replayAnalysis.ConsumedProcCount} / {replayAnalysis.ExpiredProcCount}");
             ImGui.TextUnformatted($"Observed actions: {replayAnalysis.InferredActionCount}");

@@ -17,6 +17,7 @@ public static class ActionCooldownTracker
         "Corps-a-corps",
         "Displacement",
         "Forte",
+        "Standard-issue Elixir",
         "Recuperate",
         "Purify",
         "Guard"

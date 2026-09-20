@@ -28,6 +28,11 @@ public static class ActionInferenceEngine
             if (!previousActions.TryGetValue(action.Name, out var oldAction))
                 continue;
 
+            // Elixir has a long cast followed by a short cooldown. Its cast
+            // transition is direct evidence and avoids counting it twice.
+            if (string.Equals(action.Name, "Standard-issue Elixir", StringComparison.OrdinalIgnoreCase))
+                continue;
+
             var actionSpecificRecast = action.TotalSeconds > 2.5f;
             var chargeSpent = actionSpecificRecast &&
                               action.CurrentCharges < oldAction.CurrentCharges;
@@ -53,11 +58,29 @@ public static class ActionInferenceEngine
 
         if (current.Player.Hp > 0)
         {
+            InferCastStart(previous.Player.Cast, current.Player.Cast, detectedAtUtc, result);
             InferProcConsumption(previous.Player.Statuses, current.Player.Statuses, detectedAtUtc, result);
             InferRecuperate(previous, current, detectedAtUtc, result);
         }
 
         return result;
+    }
+
+    private static void InferCastStart(
+        CastSnapshot? previous,
+        CastSnapshot? current,
+        DateTime detectedAtUtc,
+        List<InferredActionUse> result)
+    {
+        if (current?.ActionId == PvpActionIds.StandardIssueElixir &&
+            previous?.ActionId != PvpActionIds.StandardIssueElixir)
+        {
+            AddInferred(
+                "Standard-issue Elixir",
+                detectedAtUtc,
+                result,
+                "Standard-issue Elixir cast began");
+        }
     }
 
     private static void InferRecuperate(

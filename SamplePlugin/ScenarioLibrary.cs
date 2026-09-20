@@ -11,7 +11,7 @@ public static class ScenarioLibrary
     private static readonly string[] KnownActions =
     {
         "Enchanted Riposte", "Resolution", "Embolden", "Corps-a-corps",
-        "Displacement", "Forte", "Recuperate", "Purify", "Guard"
+        "Displacement", "Forte", "Standard-issue Elixir", "Recuperate", "Purify", "Guard"
     };
 
     private static readonly Scenario[] Scenarios =
@@ -47,6 +47,26 @@ public static class ScenarioLibrary
             "Moderate HP recovery",
             CreateState(playerHp: 29000, targetHp: 50000, playerMp: 6000),
             "Use Recuperate"),
+        new(
+            "Safe Elixir recovery window",
+            CreateState(playerHp: 35000, targetHp: null, playerMp: 3000,
+                nearbyEnemyCount: 0, readyActions: new[] { "Standard-issue Elixir" }),
+            "Use Standard-issue Elixir"),
+        new(
+            "Do not cast Elixir under pressure",
+            CreateState(playerHp: 50000, targetHp: 50000, playerMp: 2000,
+                readyActions: new[] { "Standard-issue Elixir" }),
+            "Use Jolt III and assess"),
+        new(
+            "Finish safe Elixir cast",
+            CreateState(playerHp: 35000, targetHp: null, playerMp: 3000,
+                nearbyEnemyCount: 0, playerCastActionId: PvpActionIds.StandardIssueElixir),
+            "Finish Standard-issue Elixir"),
+        new(
+            "Cancel threatened Elixir cast",
+            CreateState(playerHp: 35000, targetHp: 50000, playerMp: 3000,
+                playerCastActionId: PvpActionIds.StandardIssueElixir),
+            "Cancel Elixir and move"),
         new(
             "Low-health finish opportunity",
             CreateState(playerHp: 58500, targetHp: 12000),
@@ -205,7 +225,7 @@ public static class ScenarioLibrary
         ValidateActionInference(failures);
         ValidateModeDetection(failures);
         ValidateReplayAnalyzer(failures);
-        return new ScenarioValidation(Scenarios.Length + 17, failures);
+        return new ScenarioValidation(Scenarios.Length + 19, failures);
     }
 
     private static void ValidateStabilizer(List<string> failures)
@@ -287,6 +307,18 @@ public static class ScenarioLibrary
         if (recoveryEvents.Count != 1 || recoveryEvents[0].Name != "Recuperate" ||
             recoveryEvents[0].Confidence != "Medium")
             failures.Add("Action inference missed an MP-and-HP supported Recuperate.");
+
+        previous = CreateState(playerHp: 50000, targetHp: null, nearbyEnemyCount: 0);
+        current = CreateState(playerHp: 50000, targetHp: null, nearbyEnemyCount: 0);
+        current.Player!.Cast = new CastSnapshot
+        {
+            ActionId = PvpActionIds.StandardIssueElixir,
+            CurrentSeconds = 2f,
+            TotalSeconds = 4.5f
+        };
+        var elixirEvents = ActionInferenceEngine.Infer(previous, current, detectedAt);
+        if (elixirEvents.Count != 1 || elixirEvents[0].Name != "Standard-issue Elixir")
+            failures.Add("Action inference missed a Standard-issue Elixir cast start.");
     }
 
     private static void ValidateModeDetection(List<string> failures)
@@ -359,6 +391,18 @@ public static class ScenarioLibrary
         });
         if (rangeAnalysis.OutOfRangeTargetSnapshotCount != 1)
             failures.Add("Replay analyzer missed an out-of-range selected target.");
+
+        var elixirAnalysis = ReplayAnalyzer.Analyze(new List<RecordedGameState>
+        {
+            new()
+            {
+                CapturedAtUtc = capturedAt,
+                State = CreateState(playerHp: 35000, targetHp: null, playerMp: 3000,
+                    nearbyEnemyCount: 0)
+            }
+        });
+        if (elixirAnalysis.ElixirOpportunitySnapshotCount != 1)
+            failures.Add("Replay analyzer missed a safe Elixir recovery window.");
     }
 
     private static GameState CreateState(
@@ -370,7 +414,8 @@ public static class ScenarioLibrary
         float targetDistance = 12f,
         int nearbyEnemyCount = 1,
         string[]? readyActions = null,
-        bool allyNearby = true)
+        bool allyNearby = true,
+        uint? playerCastActionId = null)
     {
         var state = new GameState
         {
@@ -412,6 +457,16 @@ public static class ScenarioLibrary
 
         if (playerStatus != null)
             state.Player.Statuses.Add(new StatusSnapshot { Name = playerStatus, RemainingSeconds = 3f });
+
+        if (playerCastActionId.HasValue)
+        {
+            state.Player.Cast = new CastSnapshot
+            {
+                ActionId = playerCastActionId.Value,
+                CurrentSeconds = 2f,
+                TotalSeconds = 4.5f
+            };
+        }
 
         if (targetHp.HasValue)
         {

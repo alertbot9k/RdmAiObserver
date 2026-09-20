@@ -30,6 +30,7 @@ public static class DecisionEngine
             ? Percent(current, maximum)
             : (float?)null;
         var nearbyEnemies = CountNearbyEnemies(state, 15f);
+        var nearbyEnemiesInSpellRange = CountNearbyEnemies(state, 25f);
         var nearbyAllies = CountNearbyAllies(state, 15f);
         var canSpendMp = player.Mp >= CommonActionMpCost;
         var purifyReady = IsActionAvailable(player.Actions, "Purify");
@@ -37,6 +38,7 @@ public static class DecisionEngine
         var forteReady = IsActionAvailable(player.Actions, "Forte");
         var corpsReady = IsActionAvailable(player.Actions, "Corps-a-corps");
         var displacementReady = IsActionAvailable(player.Actions, "Displacement");
+        var elixirReady = IsActionAvailable(player.Actions, "Standard-issue Elixir");
         var riposteReady = IsActionAvailable(player.Actions, "Enchanted Riposte");
         var emboldenReady = IsActionAvailable(player.Actions, "Embolden");
         var resolutionReady = IsActionKnownAndAvailable(player.Actions, "Resolution");
@@ -65,6 +67,22 @@ public static class DecisionEngine
 
         if (crowdControl != null && canSpendMp && purifyReady)
             return Recommend(DecisionPriority.Purify, "Purify", $"{crowdControl} is active and at least {CommonActionMpCost:N0} MP is available.");
+
+        if (player.Cast?.ActionId == PvpActionIds.StandardIssueElixir)
+        {
+            return nearbyEnemiesInSpellRange == 0
+                ? Recommend(DecisionPriority.Recover, "Finish Standard-issue Elixir", "The recovery cast is already in progress and the 25-yalm threat scan remains clear.")
+                : Recommend(DecisionPriority.Defend, "Cancel Elixir and move", $"{nearbyEnemiesInSpellRange} live opponent(s) entered 25 yalms during the interruptible recovery cast.");
+        }
+
+        if (elixirReady && nearbyEnemiesInSpellRange == 0 &&
+            (hp <= 70f || player.Mp <= 4000))
+        {
+            return Recommend(
+                DecisionPriority.Recover,
+                "Use Standard-issue Elixir",
+                $"No live opponent is within 25 yalms; safely restore from {hp:F0}% HP and {player.Mp:N0} MP before re-engaging.");
+        }
 
         if (trend?.IsRapidDamage == true && hp <= 75f)
         {

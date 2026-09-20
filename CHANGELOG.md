@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.3
+
+- Added safe Standard-issue Elixir recovery advice using the 25-yalm threat scan.
+- Added direct Elixir cast inference for existing and future recordings.
+- Added Elixir cooldown availability tracking and replay opportunity metrics.
+- Added finish/cancel guidance when an Elixir cast is already in progress.
+- Expanded automatic offline validation to 57 checks.
+
 ## 0.2.2
 
 - Prevented out-of-range proc recommendations beyond the 25-yalm spell limit.
