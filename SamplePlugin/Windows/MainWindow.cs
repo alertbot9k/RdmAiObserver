@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Text.Json;
 using Dalamud.Bindings.ImGui;
@@ -231,10 +232,19 @@ public class MainWindow : Window, IDisposable
                 }
             }
 
+            var capturedAt = DateTime.UtcNow;
+            var previousState = recordedStates.Count > 0
+                ? recordedStates[^1].State
+                : null;
+            var inferredActions = InferActionUses(previousState, state, capturedAt);
+
             recordedStates.Add(new RecordedGameState
             {
-                CapturedAtUtc = DateTime.UtcNow,
-                State = state
+                FormatVersion = 2,
+                CapturedAtUtc = capturedAt,
+                State = state,
+                Recommendation = DecisionEngine.Evaluate(state),
+                InferredActions = inferredActions
             });
 
             // Keep the most recent 10 minutes at one snapshot every two seconds.
@@ -245,13 +255,54 @@ public class MainWindow : Window, IDisposable
             if (recordedStates.Count % 15 == 0)
                 FlushRecording();
 
-            replayMessage = $"Recording: {recordedStates.Count} snapshots captured.";
+            replayMessage = inferredActions.Count == 0
+                ? $"Recording: {recordedStates.Count} snapshots captured."
+                : $"Observed action: {string.Join(", ", inferredActions.Select(action => action.Name))}";
         }
         catch (Exception exception)
         {
             isRecording = false;
             replayMessage = $"Recording stopped: {exception.Message}";
         }
+    }
+
+    private static List<InferredActionUse> InferActionUses(
+        GameState? previous,
+        GameState current,
+        DateTime detectedAtUtc)
+    {
+        var result = new List<InferredActionUse>();
+        if (previous?.Player == null || current.Player == null)
+            return result;
+
+        var previousActions = new Dictionary<string, ActionCooldownSnapshot>(StringComparer.OrdinalIgnoreCase);
+        foreach (var action in previous.Player.Actions)
+            previousActions[action.Name] = action;
+
+        foreach (var action in current.Player.Actions)
+        {
+            if (!previousActions.TryGetValue(action.Name, out var oldAction))
+                continue;
+
+            var chargeSpent = action.CurrentCharges < oldAction.CurrentCharges;
+            var cooldownStarted = !oldAction.IsCoolingDown &&
+                                  action.IsCoolingDown &&
+                                  action.RemainingSeconds > 0.05f;
+
+            if (!chargeSpent && !cooldownStarted)
+                continue;
+
+            result.Add(new InferredActionUse
+            {
+                Name = action.Name,
+                DetectedAtUtc = detectedAtUtc,
+                PreviousCharges = oldAction.CurrentCharges,
+                CurrentCharges = action.CurrentCharges,
+                CooldownRemainingSeconds = action.RemainingSeconds
+            });
+        }
+
+        return result;
     }
 
     private void OnFrameworkUpdate(Dalamud.Plugin.Services.IFramework framework)
@@ -310,6 +361,18 @@ public class MainWindow : Window, IDisposable
 
 public sealed class RecordedGameState
 {
+    public int FormatVersion { get; set; } = 2;
     public DateTime CapturedAtUtc { get; set; }
     public GameState State { get; set; } = new();
+    public DecisionRecommendation? Recommendation { get; set; }
+    public List<InferredActionUse> InferredActions { get; set; } = new();
+}
+
+public sealed class InferredActionUse
+{
+    public string Name { get; set; } = "";
+    public DateTime DetectedAtUtc { get; set; }
+    public uint PreviousCharges { get; set; }
+    public uint CurrentCharges { get; set; }
+    public float CooldownRemainingSeconds { get; set; }
 }
