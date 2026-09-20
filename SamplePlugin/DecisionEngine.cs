@@ -35,6 +35,12 @@ public static class DecisionEngine
         var dualcastReady = HasStatus(player.Statuses, "Dualcast");
         var prefulgenceReady = HasStatus(player.Statuses, "Prefulgence Ready");
         var thornedFlourish = HasStatus(player.Statuses, "Thorned Flourish");
+        var enchantedRiposte = HasStatus(player.Statuses, "Enchanted Riposte");
+        var enchantedZwerchhau = HasStatus(player.Statuses, "Enchanted Zwerchhau");
+        var enchantedRedoublement = HasStatus(player.Statuses, "Enchanted Redoublement");
+
+        if (player.Hp == 0)
+            return Recommend(DecisionPriority.Wait, "Wait for respawn", "The player is incapacitated; combat recommendations are paused.");
 
         if (selfGuarding)
             return Recommend(DecisionPriority.Defend, "Hold Guard", "Guard is active; avoid canceling its protection with another action.");
@@ -62,6 +68,15 @@ public static class DecisionEngine
 
         if (targetGuarding && state.Target.Distance > 5f)
             return Recommend(DecisionPriority.Reposition, "Do not spend ranged burst", $"{state.Target.Name} is Guarding; reposition or pressure a different target.");
+
+        if (enchantedRedoublement && state.Target.Distance <= 25f)
+            return Recommend(DecisionPriority.Burst, "Use Scorch", "The recorded combo state shows Enchanted Redoublement completed; continue into Scorch.");
+
+        if (enchantedZwerchhau && state.Target.Distance <= 5f)
+            return Recommend(DecisionPriority.Burst, "Use Enchanted Redoublement", "Continue the active melee combo before its state expires.");
+
+        if (enchantedRiposte && state.Target.Distance <= 5f)
+            return Recommend(DecisionPriority.Burst, "Use Enchanted Zwerchhau", "Continue the active melee combo before its state expires.");
 
         if (targetHp <= 30f && hp >= 55f && nearbyEnemies <= 2)
         {

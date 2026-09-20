@@ -120,6 +120,16 @@ public class MainWindow : Window, IDisposable
         {
             isRecording = !isRecording;
             nextAutomaticCaptureUtc = DateTime.MinValue;
+
+            if (isRecording)
+            {
+                // A recording is one test session. Do not mix previous matches
+                // into a new export; the old file is replaced on the first flush.
+                recordedStates.Clear();
+                recordingHistoryLoaded = true;
+                FlushRecording();
+            }
+
             replayMessage = isRecording
                 ? "Recording a snapshot every two seconds."
                 : "Recording stopped.";

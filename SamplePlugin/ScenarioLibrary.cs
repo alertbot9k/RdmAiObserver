@@ -42,7 +42,13 @@ public static class ScenarioLibrary
             CreateState(playerHp: 50000, targetHp: 50000, nearbyEnemy: true, playerStatus: "Dualcast")),
         new(
             "Prefulgence ready",
-            CreateState(playerHp: 35000, targetHp: 40000, nearbyEnemy: true, playerStatus: "Prefulgence Ready"))
+            CreateState(playerHp: 35000, targetHp: 40000, nearbyEnemy: true, playerStatus: "Prefulgence Ready")),
+        new(
+            "Continue melee combo",
+            CreateState(playerHp: 50000, targetHp: 42000, nearbyEnemy: true, playerStatus: "Enchanted Riposte", targetDistance: 3f)),
+        new(
+            "Incapacitated",
+            CreateState(playerHp: 0, targetHp: 30000, nearbyEnemy: true))
     };
 
     public static int Count => Scenarios.Length;
@@ -59,7 +65,8 @@ public static class ScenarioLibrary
         bool nearbyEnemy,
         uint playerMp = 10000,
         string? playerStatus = null,
-        string? targetStatus = null)
+        string? targetStatus = null,
+        float targetDistance = 12f)
     {
         var state = new GameState
         {
@@ -90,7 +97,7 @@ public static class ScenarioLibrary
             {
                 Name = "Enemy One",
                 Kind = "Pc",
-                Distance = 12,
+                Distance = targetDistance,
                 Hp = targetHp.Value,
                 MaxHp = 58500
             };
@@ -110,7 +117,7 @@ public static class ScenarioLibrary
             {
                 Name = "Enemy One",
                 Kind = "Pc",
-                Distance = 12,
+                Distance = targetDistance,
                 Hp = targetHp ?? 58500,
                 MaxHp = 58500
             });
