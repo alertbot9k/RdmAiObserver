@@ -27,6 +27,7 @@ public static class DecisionEngine
             ? Percent(current, maximum)
             : (float?)null;
         var nearbyEnemies = CountNearbyEnemies(state, 15f);
+        var nearbyAllies = CountNearbyAllies(state, 15f);
         var canSpendMp = player.Mp >= CommonActionMpCost;
         var purifyReady = IsActionAvailable(player.Actions, "Purify");
         var guardReady = IsActionAvailable(player.Actions, "Guard");
@@ -79,7 +80,7 @@ public static class DecisionEngine
         if (state.Target == null)
         {
             return bestTarget == null
-                ? Recommend(DecisionPriority.Observe, "Select a vulnerable target", "No target is selected and no opponent is inside 25 yalms.")
+                ? Recommend(DecisionPriority.Observe, "Regroup and scan", "No opponent is currently inside 25 yalms.")
                 : Recommend(DecisionPriority.Target, $"Target {bestTarget.Name}", DescribeTarget(bestTarget));
         }
 
@@ -116,8 +117,14 @@ public static class DecisionEngine
         if (targetHasMonomachy && riposteReady && state.Target.Distance <= 5f && hp >= 55f && nearbyEnemies <= 2)
             return Recommend(DecisionPriority.Burst, "Start Enchanted Riposte", "Monomachy is active, the melee chain is ready, and local risk is acceptable.");
 
-        if (!targetHasMonomachy && corpsReady && riposteReady && state.Target.Distance <= 25f && hp >= 65f && nearbyEnemies <= 2)
-            return Recommend(DecisionPriority.Burst, "Corps-a-corps, then Enchanted Riposte", "Both engagement and melee-chain resources are ready for a controlled burst window.");
+        if (!targetHasMonomachy && corpsReady && riposteReady && state.Target.Distance <= 25f &&
+            hp >= 80f && player.Mp >= 4000 && nearbyEnemies <= 2 && nearbyAllies >= 1)
+        {
+            return Recommend(
+                DecisionPriority.Burst,
+                "Corps-a-corps, then Enchanted Riposte",
+                $"Burst resources are ready with {hp:F0}% HP, {player.Mp:N0} MP, and {nearbyAllies} nearby ally/allies.");
+        }
 
         if (emboldenReady && targetHp <= 70f && hp >= 55f && nearbyEnemies <= 2 && !HasStatus(player.Statuses, "Embolden"))
             return Recommend(DecisionPriority.Burst, "Use Embolden", "A viable target is present and the defensive risk is acceptable for a team burst window.");
@@ -198,6 +205,19 @@ public static class DecisionEngine
         foreach (var character in state.NearbyCharacters)
         {
             if (character.Distance <= range && !partyNames.Contains(character.Name))
+                count++;
+        }
+
+        return count;
+    }
+
+    private static int CountNearbyAllies(GameState state, float range)
+    {
+        var count = 0;
+        foreach (var member in state.Party)
+        {
+            if (member.Distance <= range && member.Hp > 0 &&
+                !string.Equals(member.Name, state.Player?.Name, StringComparison.Ordinal))
                 count++;
         }
 
