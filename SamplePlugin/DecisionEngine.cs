@@ -97,12 +97,6 @@ public static class DecisionEngine
         if (hp <= 55f && player.Mp >= 4000 && !prefulgenceReady)
             return Recommend(DecisionPriority.Recover, "Use Recuperate", $"HP is {hp:F0}% and enough MP remains for two Recuperates.");
 
-        if (prefulgenceReady && state.Target != null)
-            return Recommend(DecisionPriority.Burst, "Use Prefulgence", "Prefulgence Ready is active; use the instant damage and party healing before it expires.");
-
-        if (thornedFlourish && state.Target != null)
-            return Recommend(DecisionPriority.Control, "Use Vice of Thorns", "Thorned Flourish is active; Vice of Thorns adds damage and a stun.");
-
         if (state.Target == null)
         {
             return bestTarget == null
@@ -110,6 +104,8 @@ public static class DecisionEngine
                 : Recommend(DecisionPriority.Target, $"Target {bestTarget.Name}", DescribeTarget(bestTarget));
         }
 
+        // Validate the target before recommending a proc. Prefulgence, Vice of
+        // Thorns, and Grand Impact do not pierce Guard and should not be wasted.
         if (targetInvincible)
         {
             return bestTarget != null &&
@@ -118,19 +114,31 @@ public static class DecisionEngine
                 : Recommend(DecisionPriority.Target, "Find another target", $"{state.Target.Name} has Invincibility and cannot be pressured effectively.");
         }
 
-        if (targetGuarding && state.Target.Distance > 5f)
+        if (targetGuarding)
         {
-            if ((enchantedRiposte || enchantedZwerchhau) && state.Target.Distance <= 25f)
+            if (state.Target.Distance > 5f &&
+                (enchantedRiposte || enchantedZwerchhau) && state.Target.Distance <= 25f)
                 return Recommend(DecisionPriority.Reposition, "Close distance to continue the melee combo", "The active melee chain ignores Guard, but the target is outside its 5-yalm range.");
 
-            if (corpsReady && riposteReady && hp >= 70f && nearbyEnemies <= 2)
+            if (state.Target.Distance > 5f && corpsReady && riposteReady &&
+                hp >= 70f && nearbyEnemies <= 2)
                 return Recommend(DecisionPriority.Burst, "Corps-a-corps, then Enchanted Riposte", "The melee chain ignores Guard, and Monomachy reduces this target's return damage.");
 
-            return Recommend(DecisionPriority.Reposition, "Do not spend ranged burst", $"{state.Target.Name} is Guarding; reposition or pressure a different target.");
+            if (state.Target.Distance <= 5f && riposteReady)
+                return Recommend(DecisionPriority.Burst, "Use Enchanted Riposte", "The melee chain ignores Guard and is currently available.");
+
+            if (bestTarget != null && !bestTarget.IsGuarding &&
+                !string.Equals(state.Target.Name, bestTarget.Name, StringComparison.Ordinal))
+                return Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", $"{state.Target.Name} is Guarding; {DescribeTarget(bestTarget)}");
+
+            return Recommend(DecisionPriority.Reposition, "Do not spend ranged burst", $"{state.Target.Name} is Guarding and the Guard-piercing melee chain is unavailable; preserve procs or switch targets.");
         }
 
-        if (targetGuarding && state.Target.Distance <= 5f && riposteReady)
-            return Recommend(DecisionPriority.Burst, "Use Enchanted Riposte", "The melee chain ignores Guard and is currently available.");
+        if (prefulgenceReady && state.Target != null)
+            return Recommend(DecisionPriority.Burst, "Use Prefulgence", "Prefulgence Ready is active; use the instant damage and party healing before it expires.");
+
+        if (thornedFlourish && state.Target != null)
+            return Recommend(DecisionPriority.Control, "Use Vice of Thorns", "Thorned Flourish is active; Vice of Thorns adds damage and a stun.");
 
         if (enchantedRedoublement && state.Target.Distance <= 25f)
         {

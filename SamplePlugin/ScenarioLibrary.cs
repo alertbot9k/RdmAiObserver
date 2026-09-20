@@ -136,6 +136,17 @@ public static class ScenarioLibrary
             "Use Recuperate",
             new CombatTrend(25f, 2f)),
         new(
+            "Do not waste Prefulgence on Invincibility",
+            CreateState(playerHp: 50000, targetHp: 50000,
+                playerStatus: "Prefulgence Ready", targetStatus: "Invincibility",
+                nearbyEnemyCount: 2),
+            "Switch to Enemy 2"),
+        new(
+            "Preserve ranged proc through Guard",
+            CreateState(playerHp: 50000, targetHp: 50000,
+                playerStatus: "Prefulgence Ready", targetStatus: "Guard"),
+            "Do not spend ranged burst"),
+        new(
             "Incapacitated",
             CreateState(playerHp: 0, targetHp: 30000),
             "Wait for respawn")
@@ -164,7 +175,7 @@ public static class ScenarioLibrary
         ValidateActionInference(failures);
         ValidateModeDetection(failures);
         ValidateReplayAnalyzer(failures);
-        return new ScenarioValidation(Scenarios.Length + 13, failures);
+        return new ScenarioValidation(Scenarios.Length + 14, failures);
     }
 
     private static void ValidateStabilizer(List<string> failures)
@@ -239,6 +250,13 @@ public static class ScenarioLibrary
         var procEvents = ActionInferenceEngine.Infer(previous, current, detectedAt);
         if (procEvents.Count != 1 || procEvents[0].Name != "Prefulgence")
             failures.Add("Action inference did not detect Prefulgence proc consumption.");
+
+        previous = CreateState(playerHp: 30000, targetHp: 50000, playerMp: 6000);
+        current = CreateState(playerHp: 46000, targetHp: 50000, playerMp: 4500);
+        var recoveryEvents = ActionInferenceEngine.Infer(previous, current, detectedAt);
+        if (recoveryEvents.Count != 1 || recoveryEvents[0].Name != "Recuperate" ||
+            recoveryEvents[0].Confidence != "Medium")
+            failures.Add("Action inference missed an MP-and-HP supported Recuperate.");
     }
 
     private static void ValidateModeDetection(List<string> failures)

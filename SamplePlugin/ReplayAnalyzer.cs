@@ -14,11 +14,15 @@ public static class ReplayAnalyzer
         var events = new List<ReplayTimelineEvent>();
         var trendTracker = new CombatTrendTracker();
         string? previousRecommendation = null;
+        GameState? previousState = null;
 
         foreach (var snapshot in snapshots)
         {
             var trend = trendTracker.Update(snapshot.State, snapshot.CapturedAtUtc);
             var recommendation = DecisionEngine.Evaluate(snapshot.State, trend);
+            var observedActions = ActionInferenceEngine.Infer(
+                previousState, snapshot.State, snapshot.CapturedAtUtc);
+            previousState = snapshot.State;
             var player = snapshot.State.Player;
             var hpPercent = player is { MaxHp: > 0 }
                 ? player.Hp * 100f / player.MaxHp
@@ -40,7 +44,7 @@ public static class ReplayAnalyzer
             if (player is not { Hp: > 0 })
                 continue;
 
-            foreach (var action in snapshot.InferredActions)
+            foreach (var action in observedActions)
             {
                 if (!IsReliable(action))
                     continue;
@@ -56,7 +60,7 @@ public static class ReplayAnalyzer
             }
         }
 
-        return new ReplayReport(1, generatedAtUtc, Analyze(snapshots), events);
+        return new ReplayReport(2, generatedAtUtc, Analyze(snapshots), events);
     }
 
     public static ReplayAnalysis Analyze(IReadOnlyList<RecordedGameState> snapshots)
@@ -67,6 +71,7 @@ public static class ReplayAnalyzer
         string? previousRecommendation = null;
         var changes = 0;
         var activeSnapshots = 0;
+        var engagedSnapshots = 0;
         var inferredActions = 0;
         var evaluatedActions = 0;
         var matchingActions = 0;
@@ -89,6 +94,8 @@ public static class ReplayAnalyzer
         {
             var trend = trendTracker.Update(snapshot.State, snapshot.CapturedAtUtc);
             var recommendation = DecisionEngine.Evaluate(snapshot.State, trend);
+            var observedActions = ActionInferenceEngine.Infer(
+                previousState, snapshot.State, snapshot.CapturedAtUtc);
             if (trend?.IsRapidDamage == true)
                 rapidDamageSnapshots++;
             if (recommendation.Priority is DecisionPriority.Defend or DecisionPriority.Recover or
@@ -108,8 +115,14 @@ public static class ReplayAnalyzer
                 lowestHpPercent = Math.Min(lowestHpPercent, hpPercent);
                 if (hpPercent <= 30f)
                     lowHpSnapshots++;
-                if (snapshot.State.Target == null)
-                    noTargetSnapshots++;
+                var engaged = !HasStatus(player.Statuses, "Invincibility") &&
+                              (snapshot.State.Target?.Hp is > 0 || HasNearbyEnemy(snapshot.State, 25f));
+                if (engaged)
+                {
+                    engagedSnapshots++;
+                    if (snapshot.State.Target == null)
+                        noTargetSnapshots++;
+                }
                 if (HasStatus(snapshot.State.Target?.Statuses, "Guard"))
                     guardingTargetSnapshots++;
                 if (wasAlive == false)
@@ -136,7 +149,7 @@ public static class ReplayAnalyzer
 
             var reliableActionWindow = false;
             var windowMatched = false;
-            foreach (var action in snapshot.InferredActions)
+            foreach (var action in observedActions)
             {
                 if (snapshot.State.Player is not { Hp: > 0 } || !IsReliable(action))
                     continue;
@@ -178,6 +191,7 @@ public static class ReplayAnalyzer
                 ? Math.Max(0f, (float)(snapshots[^1].CapturedAtUtc - snapshots[0].CapturedAtUtc).TotalSeconds)
                 : 0f,
             activeSnapshots,
+            engagedSnapshots,
             changes,
             inferredActions,
             evaluatedActions,
@@ -240,9 +254,27 @@ public static class ReplayAnalyzer
     private static bool IsReliable(InferredActionUse action)
     {
         // Older recordings captured Recuperate's one-second shared cooldown
-        // as an action use. Real tracked cooldowns and proc uses remain valid.
+        // as an action use. A cooldown alone remains insufficient, but the new
+        // MP-plus-healing evidence is useful as a medium-confidence event.
         return !string.Equals(action.Name, "Recuperate", StringComparison.OrdinalIgnoreCase) ||
-               action.CooldownRemainingSeconds > 2.5f;
+               action.CooldownRemainingSeconds > 2.5f ||
+               action.Evidence.StartsWith("MP fell by", StringComparison.Ordinal);
+    }
+
+    private static bool HasNearbyEnemy(GameState state, float range)
+    {
+        var partyNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var member in state.Party)
+            partyNames.Add(member.Name);
+
+        foreach (var character in state.NearbyCharacters)
+        {
+            if (character.Hp > 0 && character.MaxHp > 0 && character.Distance <= range &&
+                !partyNames.Contains(character.Name))
+                return true;
+        }
+
+        return false;
     }
 
     private static bool MentionsAction(string recommendation, string action)
@@ -290,6 +322,7 @@ public sealed record ReplayAnalysis(
     int SnapshotCount,
     float DurationSeconds,
     int ActiveSnapshotCount,
+    int EngagedSnapshotCount,
     int RecommendationChanges,
     int InferredActionCount,
     int EvaluatedActionCount,
@@ -316,9 +349,9 @@ public sealed record ReplayAnalysis(
         ? 0f
         : MatchingActionCount * 100f / EvaluatedActionCount;
 
-    public float NoTargetPercent => ActiveSnapshotCount == 0
+    public float NoTargetPercent => EngagedSnapshotCount == 0
         ? 0f
-        : NoTargetSnapshotCount * 100f / ActiveSnapshotCount;
+        : NoTargetSnapshotCount * 100f / EngagedSnapshotCount;
 
     public string CalibrationNote => Mode switch
     {

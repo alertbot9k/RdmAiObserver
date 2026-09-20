@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1
+
+- Prevented ranged procs from being recommended into Guard or Invincibility.
+- Added evidence-labeled Recuperate inference from matching MP and HP changes.
+- Recomputes action evidence from raw states when older recordings are analyzed.
+- Restricted no-target analysis to snapshots with a nearby live opponent.
+- Excluded invincibility/respawn protection from engaged-time targeting metrics.
+- Expanded automatic offline validation to 42 checks.
+
 ## 0.2.0
 
 - Added rolling three-second HP-loss detection and rapid-burst defense advice.

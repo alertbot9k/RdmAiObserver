@@ -229,7 +229,7 @@ public class MainWindow : Window, IDisposable
             ImGui.TextUnformatted($"Critical-HP snapshots: {replayAnalysis.LowHpSnapshotCount}");
             ImGui.TextUnformatted($"Rapid-damage snapshots: {replayAnalysis.RapidDamageSnapshotCount}");
             ImGui.TextUnformatted($"Defensive recommendations: {replayAnalysis.DefensiveRecommendationCount}");
-            ImGui.TextUnformatted($"No-target time: {replayAnalysis.NoTargetPercent:F0}% of active snapshots");
+            ImGui.TextUnformatted($"No-target time: {replayAnalysis.NoTargetPercent:F0}% of engaged snapshots ({replayAnalysis.EngagedSnapshotCount} evaluated)");
             ImGui.TextUnformatted($"Target Guard snapshots: {replayAnalysis.GuardingTargetSnapshotCount}");
             ImGui.TextUnformatted($"Procs consumed / expired: {replayAnalysis.ConsumedProcCount} / {replayAnalysis.ExpiredProcCount}");
             ImGui.TextUnformatted($"Observed actions: {replayAnalysis.InferredActionCount}");

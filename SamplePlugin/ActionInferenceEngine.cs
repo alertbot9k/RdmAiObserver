@@ -5,7 +5,8 @@ namespace SamplePlugin;
 
 /// <summary>
 /// Infers a conservative action timeline from cooldown and status transitions.
-/// Ambiguous one-second shared recasts and status loss on death are ignored.
+/// Shared recasts require matching resource evidence, and status loss on death
+/// is ignored.
 /// </summary>
 public static class ActionInferenceEngine
 {
@@ -51,9 +52,41 @@ public static class ActionInferenceEngine
         }
 
         if (current.Player.Hp > 0)
+        {
             InferProcConsumption(previous.Player.Statuses, current.Player.Statuses, detectedAtUtc, result);
+            InferRecuperate(previous, current, detectedAtUtc, result);
+        }
 
         return result;
+    }
+
+    private static void InferRecuperate(
+        GameState previous,
+        GameState current,
+        DateTime detectedAtUtc,
+        List<InferredActionUse> result)
+    {
+        var oldPlayer = previous.Player!;
+        var newPlayer = current.Player!;
+        if (oldPlayer.Hp == 0 || oldPlayer.MaxHp == 0 || newPlayer.MaxHp == 0 ||
+            newPlayer.Mp >= oldPlayer.Mp || HasStatus(newPlayer.Statuses, "Invincibility"))
+            return;
+
+        // Two-second recordings normally include roughly 500 MP of passive
+        // recovery, so one 2,000-MP Recuperate appears as a 1,500-MP net drop.
+        var mpDrop = oldPlayer.Mp - newPlayer.Mp;
+        var hpGain = newPlayer.Hp > oldPlayer.Hp ? newPlayer.Hp - oldPlayer.Hp : 0;
+        if (mpDrop < 1500 || hpGain < 6000 || ActionWasObserved(result, "Purify"))
+            return;
+
+        result.Add(new InferredActionUse
+        {
+            Name = "Recuperate",
+            DetectedAtUtc = detectedAtUtc,
+            CooldownRemainingSeconds = 0f,
+            Confidence = "Medium",
+            Evidence = $"MP fell by {mpDrop:N0} while HP rose by {hpGain:N0}; consistent with Recuperate"
+        });
     }
 
     private static void InferProcConsumption(
@@ -112,6 +145,17 @@ public static class ActionInferenceEngine
         foreach (var status in statuses)
         {
             if (string.Equals(status.Name, name, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool ActionWasObserved(List<InferredActionUse> actions, string name)
+    {
+        foreach (var action in actions)
+        {
+            if (string.Equals(action.Name, name, StringComparison.OrdinalIgnoreCase))
                 return true;
         }
 
