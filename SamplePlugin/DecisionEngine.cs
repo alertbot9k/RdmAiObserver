@@ -35,6 +35,7 @@ public static class DecisionEngine
         var corpsReady = IsActionAvailable(player.Actions, "Corps-a-corps");
         var riposteReady = IsActionAvailable(player.Actions, "Enchanted Riposte");
         var emboldenReady = IsActionAvailable(player.Actions, "Embolden");
+        var resolutionReady = IsActionKnownAndAvailable(player.Actions, "Resolution");
         var bestTarget = TargetEvaluator.FindBest(state);
         var crowdControl = FindStatus(player.Statuses, PurifiableStatuses);
         var selfGuarding = HasStatus(player.Statuses, "Guard");
@@ -106,6 +107,17 @@ public static class DecisionEngine
         if (enchantedRiposte && state.Target.Distance <= 5f)
             return Recommend(DecisionPriority.Burst, "Use Enchanted Zwerchhau", "Continue the active melee combo before its state expires.");
 
+        var safeBurstWindow = hp >= 70f && player.Mp >= 4000 && nearbyEnemies <= 2 && nearbyAllies >= 1;
+
+        if (emboldenReady && safeBurstWindow && !HasStatus(player.Statuses, "Embolden"))
+            return Recommend(DecisionPriority.Burst, "Use Embolden", "A teammate is nearby and defensive resources are sufficient to begin the burst window.");
+
+        if (resolutionReady && state.Target.Distance <= 25f)
+            return Recommend(DecisionPriority.Control, "Use Resolution", "Resolution is ready; apply its line damage and Silence before committing to melee.");
+
+        if (dualcastReady && state.Target.Distance <= 25f)
+            return Recommend(DecisionPriority.Pressure, "Use Grand Impact", "Dualcast is active; spend Grand Impact before beginning the melee commitment.");
+
         if (targetHp <= 30f && hp >= 55f && nearbyEnemies <= 2)
         {
             var monomachyText = targetHasMonomachy
@@ -125,12 +137,6 @@ public static class DecisionEngine
                 "Corps-a-corps, then Enchanted Riposte",
                 $"Burst resources are ready with {hp:F0}% HP, {player.Mp:N0} MP, and {nearbyAllies} nearby ally/allies.");
         }
-
-        if (emboldenReady && targetHp <= 70f && hp >= 55f && nearbyEnemies <= 2 && !HasStatus(player.Statuses, "Embolden"))
-            return Recommend(DecisionPriority.Burst, "Use Embolden", "A viable target is present and the defensive risk is acceptable for a team burst window.");
-
-        if (dualcastReady && state.Target.Distance <= 25f)
-            return Recommend(DecisionPriority.Pressure, "Use Grand Impact", "Dualcast is active and the target is in spell range.");
 
         if (state.Target.Distance <= 5f && hp >= 60f && nearbyEnemies <= 2)
             return Recommend(DecisionPriority.Burst, "Continue the melee combo", $"The target is in melee range with {nearbyEnemies} nearby opponent(s) and your HP is stable.");
@@ -193,6 +199,17 @@ public static class DecisionEngine
         // Offline scenarios and old recordings have no cooldown list. Preserve
         // their prior behavior instead of treating every action as unavailable.
         return !found;
+    }
+
+    private static bool IsActionKnownAndAvailable(IEnumerable<ActionCooldownSnapshot> actions, string name)
+    {
+        foreach (var action in actions)
+        {
+            if (string.Equals(action.Name, name, StringComparison.OrdinalIgnoreCase))
+                return action.IsAvailable;
+        }
+
+        return false;
     }
 
     private static int CountNearbyEnemies(GameState state, float range)
