@@ -14,6 +14,9 @@ public static class ScenarioLibrary
             "No immediate priority",
             CreateState(playerHp: 58500, targetHp: null, nearbyEnemy: false)),
         new(
+            "Select nearby target",
+            CreateState(playerHp: 58500, targetHp: null, nearbyEnemy: true)),
+        new(
             "Low health under pressure",
             CreateState(playerHp: 18000, targetHp: 58500, nearbyEnemy: true)),
         new(

@@ -32,6 +32,9 @@ public static class DecisionEngine
         var guardReady = IsActionAvailable(player.Actions, "Guard");
         var forteReady = IsActionAvailable(player.Actions, "Forte");
         var corpsReady = IsActionAvailable(player.Actions, "Corps-a-corps");
+        var riposteReady = IsActionAvailable(player.Actions, "Enchanted Riposte");
+        var emboldenReady = IsActionAvailable(player.Actions, "Embolden");
+        var bestTarget = TargetEvaluator.FindBest(state);
         var crowdControl = FindStatus(player.Statuses, PurifiableStatuses);
         var selfGuarding = HasStatus(player.Statuses, "Guard");
         var targetGuarding = HasStatus(state.Target?.Statuses, "Guard");
@@ -74,10 +77,24 @@ public static class DecisionEngine
             return Recommend(DecisionPriority.Control, "Use Vice of Thorns", "Thorned Flourish is active; Vice of Thorns adds damage and a stun.");
 
         if (state.Target == null)
-            return Recommend(DecisionPriority.Observe, "Select a vulnerable target", "No target is selected.");
+        {
+            return bestTarget == null
+                ? Recommend(DecisionPriority.Observe, "Select a vulnerable target", "No target is selected and no opponent is inside 25 yalms.")
+                : Recommend(DecisionPriority.Target, $"Target {bestTarget.Name}", DescribeTarget(bestTarget));
+        }
+
+        if (bestTarget != null &&
+            !string.Equals(state.Target.Name, bestTarget.Name, StringComparison.Ordinal) &&
+            targetHp is > 55f && bestTarget.HpPercent + 15f < targetHp)
+        {
+            return Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", DescribeTarget(bestTarget));
+        }
 
         if (targetGuarding && state.Target.Distance > 5f)
             return Recommend(DecisionPriority.Reposition, "Do not spend ranged burst", $"{state.Target.Name} is Guarding; reposition or pressure a different target.");
+
+        if (targetGuarding && state.Target.Distance <= 5f && riposteReady)
+            return Recommend(DecisionPriority.Burst, "Use Enchanted Riposte", "The melee chain ignores Guard and is currently available.");
 
         if (enchantedRedoublement && state.Target.Distance <= 25f)
             return Recommend(DecisionPriority.Burst, "Use Scorch", "The recorded combo state shows Enchanted Redoublement completed; continue into Scorch.");
@@ -95,6 +112,15 @@ public static class DecisionEngine
                 : corpsReady ? " Corps-a-corps is ready to apply Monomachy." : " Corps-a-corps is unavailable; finish from range.";
             return Recommend(DecisionPriority.FinishTarget, "Commit to the finish", $"{state.Target.Name} is at {targetHp:F0}% HP and the local risk is acceptable.{monomachyText}");
         }
+
+        if (targetHasMonomachy && riposteReady && state.Target.Distance <= 5f && hp >= 55f && nearbyEnemies <= 2)
+            return Recommend(DecisionPriority.Burst, "Start Enchanted Riposte", "Monomachy is active, the melee chain is ready, and local risk is acceptable.");
+
+        if (!targetHasMonomachy && corpsReady && riposteReady && state.Target.Distance <= 25f && hp >= 65f && nearbyEnemies <= 2)
+            return Recommend(DecisionPriority.Burst, "Corps-a-corps, then Enchanted Riposte", "Both engagement and melee-chain resources are ready for a controlled burst window.");
+
+        if (emboldenReady && targetHp <= 70f && hp >= 55f && nearbyEnemies <= 2 && !HasStatus(player.Statuses, "Embolden"))
+            return Recommend(DecisionPriority.Burst, "Use Embolden", "A viable target is present and the defensive risk is acceptable for a team burst window.");
 
         if (dualcastReady && state.Target.Distance <= 25f)
             return Recommend(DecisionPriority.Pressure, "Use Grand Impact", "Dualcast is active and the target is in spell range.");
@@ -177,12 +203,20 @@ public static class DecisionEngine
 
         return count;
     }
+
+    private static string DescribeTarget(TargetCandidate target)
+    {
+        var guardText = target.IsGuarding ? ", Guarding" : "";
+        var markText = target.HasMonomachy ? ", Monomachy active" : "";
+        return $"{target.Job} at {target.HpPercent:F0}% HP and {target.Distance:F0} yalms{guardText}{markText}.";
+    }
 }
 
 public enum DecisionPriority
 {
     Wait,
     Observe,
+    Target,
     Pressure,
     Reposition,
     Control,

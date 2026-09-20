@@ -80,12 +80,16 @@ public sealed class GameState
             state.NearbyCharacters.Add(new NearbyCharacterSnapshot
             {
                 Name = character.Name.ToString(),
+                Job = character.ClassJob.IsValid
+                    ? character.ClassJob.Value.Name.ToString()
+                    : "Unknown",
                 Kind = character.ObjectKind.ToString(),
                 Distance = distance,
                 Hp = character.CurrentHp,
                 MaxHp = character.MaxHp,
                 IsCasting = character.IsCasting,
-                Cast = CaptureCast(character)
+                Cast = CaptureCast(character),
+                Statuses = CaptureStatuses(character)
             });
         }
 
@@ -201,12 +205,14 @@ public sealed class StatusSnapshot
 public sealed class NearbyCharacterSnapshot
 {
     public string Name { get; set; } = "";
+    public string Job { get; set; } = "";
     public string Kind { get; set; } = "";
     public float Distance { get; set; }
     public uint Hp { get; set; }
     public uint MaxHp { get; set; }
     public bool IsCasting { get; set; }
     public CastSnapshot? Cast { get; set; }
+    public List<StatusSnapshot> Statuses { get; set; } = new();
 }
 
 public sealed class PartyMemberSnapshot
