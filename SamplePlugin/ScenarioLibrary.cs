@@ -69,6 +69,11 @@ public static class ScenarioLibrary
             CreateState(playerHp: 50000, targetHp: 20000, targetStatus: "Guard"),
             "Do not spend ranged burst"),
         new(
+            "Avoid invincible target",
+            CreateState(playerHp: 50000, targetHp: 50000,
+                targetStatus: "Invincibility", nearbyEnemyCount: 2),
+            "Switch to Enemy 2"),
+        new(
             "Guard-piercing melee",
             CreateState(playerHp: 50000, targetHp: 20000, targetStatus: "Guard",
                 targetDistance: 3f, readyActions: new[] { "Enchanted Riposte" }),
@@ -119,6 +124,18 @@ public static class ScenarioLibrary
                 readyActions: new[] { "Corps-a-corps", "Enchanted Riposte" }),
             "Corps-a-corps, then Enchanted Riposte"),
         new(
+            "Rapid damage triggers Forte",
+            CreateState(playerHp: 39000, targetHp: 50000, nearbyEnemyCount: 2,
+                readyActions: new[] { "Forte", "Guard" }),
+            "Use Forte",
+            new CombatTrend(30f, 2f)),
+        new(
+            "Rapid damage recovery fallback",
+            CreateState(playerHp: 39000, targetHp: 50000, nearbyEnemyCount: 2,
+                playerMp: 6000, readyActions: new[] { "Guard" }),
+            "Use Recuperate",
+            new CombatTrend(25f, 2f)),
+        new(
             "Incapacitated",
             CreateState(playerHp: 0, targetHp: 30000),
             "Wait for respawn")
@@ -137,12 +154,126 @@ public static class ScenarioLibrary
         var failures = new List<string>();
         foreach (var scenario in Scenarios)
         {
-            var actual = DecisionEngine.Evaluate(scenario.State).Recommendation;
+            var actual = DecisionEngine.Evaluate(scenario.State, scenario.Trend).Recommendation;
             if (!string.Equals(actual, scenario.ExpectedRecommendation, System.StringComparison.Ordinal))
                 failures.Add($"{scenario.Name}: expected '{scenario.ExpectedRecommendation}', got '{actual}'");
         }
 
-        return new ScenarioValidation(Scenarios.Length, failures);
+        ValidateStabilizer(failures);
+        ValidateTrendTracker(failures);
+        ValidateActionInference(failures);
+        ValidateModeDetection(failures);
+        ValidateReplayAnalyzer(failures);
+        return new ScenarioValidation(Scenarios.Length + 13, failures);
+    }
+
+    private static void ValidateStabilizer(List<string> failures)
+    {
+        var stabilizer = new RecommendationStabilizer();
+        var startedAt = new System.DateTime(2026, 1, 1, 0, 0, 0, System.DateTimeKind.Utc);
+        var pressure = new DecisionRecommendation(DecisionPriority.Pressure, "Pressure", "test");
+        var burst = new DecisionRecommendation(DecisionPriority.Burst, "Burst", "test");
+        var defend = new DecisionRecommendation(DecisionPriority.Defend, "Defend", "test");
+
+        if (stabilizer.Select(pressure, startedAt).Recommendation != "Pressure")
+            failures.Add("Stabilizer initial recommendation failed.");
+        if (stabilizer.Select(burst, startedAt.AddMilliseconds(200)).Recommendation != "Pressure")
+            failures.Add("Stabilizer transient recommendation was not held.");
+        if (stabilizer.Select(burst, startedAt.AddMilliseconds(650)).Recommendation != "Burst")
+            failures.Add("Stabilizer did not accept a persistent recommendation.");
+        if (stabilizer.Select(defend, startedAt.AddMilliseconds(700)).Recommendation != "Defend")
+            failures.Add("Stabilizer delayed an urgent recommendation.");
+    }
+
+    private static void ValidateTrendTracker(List<string> failures)
+    {
+        var tracker = new CombatTrendTracker();
+        var startedAt = new System.DateTime(2026, 1, 1, 0, 0, 0, System.DateTimeKind.Utc);
+        tracker.Update(CreateState(playerHp: 58500, targetHp: 50000), startedAt);
+        var trend = tracker.Update(
+            CreateState(playerHp: 35000, targetHp: 50000),
+            startedAt.AddSeconds(2));
+
+        if (trend?.IsRapidDamage != true)
+            failures.Add("Combat trend did not detect rapid HP loss.");
+
+        tracker.Update(CreateState(playerHp: 0, targetHp: 50000), startedAt.AddSeconds(3));
+        var afterReset = tracker.Update(
+            CreateState(playerHp: 58500, targetHp: 50000),
+            startedAt.AddSeconds(4));
+        if (afterReset?.HpLostPercent != 0f)
+            failures.Add("Combat trend did not reset after incapacitation.");
+    }
+
+    private static void ValidateActionInference(List<string> failures)
+    {
+        var detectedAt = new System.DateTime(2026, 1, 1, 0, 0, 2, System.DateTimeKind.Utc);
+        var previous = CreateState(playerHp: 58500, targetHp: 50000);
+        var current = CreateState(playerHp: 58500, targetHp: 50000);
+        var previousPlayer = previous.Player!;
+        var currentPlayer = current.Player!;
+        previousPlayer.Actions.Clear();
+        currentPlayer.Actions.Clear();
+        previousPlayer.Actions.Add(new ActionCooldownSnapshot
+        {
+            Name = "Recuperate", TotalSeconds = 1f, CurrentCharges = 1, IsAvailable = true
+        });
+        currentPlayer.Actions.Add(new ActionCooldownSnapshot
+        {
+            Name = "Recuperate", TotalSeconds = 1f, RemainingSeconds = 0.5f,
+            CurrentCharges = 0, IsCoolingDown = true
+        });
+        if (ActionInferenceEngine.Infer(previous, current, detectedAt).Count != 0)
+            failures.Add("Action inference accepted a shared one-second recast.");
+
+        previous = CreateState(playerHp: 58500, targetHp: 50000);
+        previous.Player!.Statuses.Add(new StatusSnapshot
+        {
+            Name = "Prefulgence Ready", RemainingSeconds = 10f
+        });
+        current = CreateState(playerHp: 0, targetHp: 50000);
+        if (ActionInferenceEngine.Infer(previous, current, detectedAt).Count != 0)
+            failures.Add("Action inference treated death status cleanup as proc use.");
+
+        current = CreateState(playerHp: 58500, targetHp: 50000);
+        var procEvents = ActionInferenceEngine.Infer(previous, current, detectedAt);
+        if (procEvents.Count != 1 || procEvents[0].Name != "Prefulgence")
+            failures.Add("Action inference did not detect Prefulgence proc consumption.");
+    }
+
+    private static void ValidateModeDetection(List<string> failures)
+    {
+        var frontline = CreateState(
+            playerHp: 58500,
+            targetHp: 50000,
+            playerStatus: "Frontline March");
+        if (PvpModeDetector.Detect(frontline) != ObservedPvpMode.Frontline)
+            failures.Add("PvP mode detector missed the Frontline marker.");
+
+        var unknown = CreateState(playerHp: 58500, targetHp: 50000);
+        if (PvpModeDetector.Detect(unknown) != ObservedPvpMode.Unknown)
+            failures.Add("PvP mode detector guessed a mode without a reliable marker.");
+    }
+
+    private static void ValidateReplayAnalyzer(List<string> failures)
+    {
+        var empty = ReplayAnalyzer.Analyze(new List<RecordedGameState>());
+        if (empty.SnapshotCount != 0 || empty.DurationSeconds != 0f)
+            failures.Add("Replay analyzer did not handle an empty recording.");
+
+        var capturedAt = new System.DateTime(2026, 1, 1, 0, 0, 0, System.DateTimeKind.Utc);
+        var report = ReplayAnalyzer.CreateReport(
+            new List<RecordedGameState>
+            {
+                new()
+                {
+                    CapturedAtUtc = capturedAt,
+                    State = CreateState(playerHp: 58500, targetHp: 50000)
+                }
+            },
+            capturedAt);
+        if (report.Timeline.Count != 1 || report.Timeline[0].Kind != "Recommendation")
+            failures.Add("Replay report did not produce its initial recommendation event.");
     }
 
     private static GameState CreateState(
@@ -211,14 +342,19 @@ public static class ScenarioLibrary
 
         for (var enemyIndex = 0; enemyIndex < nearbyEnemyCount; enemyIndex++)
         {
-            state.NearbyCharacters.Add(new NearbyCharacterSnapshot
+            var enemy = new NearbyCharacterSnapshot
             {
                 Name = enemyIndex == 0 ? "Enemy One" : $"Enemy {enemyIndex + 1}",
                 Kind = "Pc",
                 Distance = targetDistance + enemyIndex,
                 Hp = enemyIndex == 0 ? targetHp ?? 58500 : 58500,
                 MaxHp = 58500
-            });
+            };
+
+            if (enemyIndex == 0 && targetStatus != null)
+                enemy.Statuses.Add(new StatusSnapshot { Name = targetStatus, RemainingSeconds = 3f });
+
+            state.NearbyCharacters.Add(enemy);
         }
 
         return state;
@@ -239,7 +375,11 @@ public static class ScenarioLibrary
     }
 }
 
-public sealed record Scenario(string Name, GameState State, string ExpectedRecommendation);
+public sealed record Scenario(
+    string Name,
+    GameState State,
+    string ExpectedRecommendation,
+    CombatTrend? Trend = null);
 
 public sealed record ScenarioValidation(int Total, List<string> Failures)
 {

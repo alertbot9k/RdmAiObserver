@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 
@@ -15,7 +16,8 @@ public class MainWindow : Window, IDisposable
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() }
     };
 
     private GameState? replayState;
@@ -26,7 +28,10 @@ public class MainWindow : Window, IDisposable
     private bool isRecording;
     private DateTime nextAutomaticCaptureUtc = DateTime.MinValue;
     private ReplayAnalysis? replayAnalysis;
+    private ReplayReport? replayReport;
     private readonly RecommendationStabilizer recommendationStabilizer = new();
+    private readonly CombatTrendTracker liveTrendTracker = new();
+    private readonly CombatTrendTracker recordingTrendTracker = new();
 
     public MainWindow()
         : base("FFXIV Observer##ObserverMain")
@@ -48,6 +53,18 @@ public class MainWindow : Window, IDisposable
     public void Dispose()
     {
         Plugin.Framework.Update -= OnFrameworkUpdate;
+        if (recordedStates.Count == 0)
+            return;
+
+        FlushRecording();
+        try
+        {
+            SaveReplayReport(recordedStates);
+        }
+        catch (Exception exception)
+        {
+            Plugin.Log.Warning($"Could not save the final replay analysis during shutdown: {exception.Message}");
+        }
     }
 
     public override void Draw()
@@ -67,7 +84,7 @@ public class MainWindow : Window, IDisposable
         {
             try
             {
-                File.WriteAllText(ReplayFilePath, JsonSerializer.Serialize(liveState, JsonOptions));
+                WriteJsonAtomically(ReplayFilePath, liveState);
                 replayMessage = "Saved current snapshot.";
             }
             catch (Exception exception)
@@ -106,6 +123,7 @@ public class MainWindow : Window, IDisposable
                 replayState = null;
                 scenarioIndex = -1;
                 recommendationStabilizer.Reset();
+                liveTrendTracker.Reset();
                 replayMessage = "Live state";
             }
         }
@@ -145,6 +163,7 @@ public class MainWindow : Window, IDisposable
                 // into a new export; the old file is replaced on the first flush.
                 recordedStates.Clear();
                 recordingHistoryLoaded = true;
+                recordingTrendTracker.Reset();
                 FlushRecording();
             }
 
@@ -153,7 +172,21 @@ public class MainWindow : Window, IDisposable
                 : "Recording stopped.";
 
             if (!isRecording)
+            {
                 FlushRecording();
+                if (recordedStates.Count > 0)
+                {
+                    try
+                    {
+                        SaveReplayReport(recordedStates);
+                        replayMessage = $"Recording stopped. Analysis saved with {recordedStates.Count} snapshots.";
+                    }
+                    catch (Exception exception)
+                    {
+                        replayMessage = $"Recording saved, but analysis failed: {exception.Message}";
+                    }
+                }
+            }
         }
 
         ImGui.SameLine();
@@ -168,17 +201,38 @@ public class MainWindow : Window, IDisposable
             AnalyzeLatestRecording();
         }
 
+        if (replayReport != null)
+        {
+            ImGui.SameLine();
+            if (ImGui.Button("Copy Analysis JSON"))
+                ImGui.SetClipboardText(JsonSerializer.Serialize(replayReport, JsonOptions));
+        }
+
         ImGui.Spacing();
         ImGui.TextUnformatted("FFXIV Observer - Read Only");
         var source = scenario != null
             ? $"offline scenario: {scenario.Name}"
             : replayState != null ? "saved replay state" : "live game state";
+        var observedMode = PvpModeDetector.Detect(state);
         ImGui.TextUnformatted($"Source: {source}");
         ImGui.TextUnformatted(replayMessage);
+        if (observedMode is ObservedPvpMode.Frontline or ObservedPvpMode.RivalWings)
+            ImGui.TextWrapped("Mode notice: recommendations are tuned for Crystalline Conflict; this mode is recorded for technical validation only.");
 
         if (replayAnalysis != null && ImGui.CollapsingHeader("Offline replay analysis"))
         {
+            ImGui.TextUnformatted($"Detected mode: {replayAnalysis.Mode}");
+            ImGui.TextWrapped(replayAnalysis.CalibrationNote);
+            ImGui.TextUnformatted($"Duration: {replayAnalysis.DurationSeconds / 60f:F1} minutes");
             ImGui.TextUnformatted($"Snapshots: {replayAnalysis.SnapshotCount} ({replayAnalysis.ActiveSnapshotCount} active)");
+            ImGui.TextUnformatted($"Deaths / respawns: {replayAnalysis.DeathCount} / {replayAnalysis.RespawnCount}");
+            ImGui.TextUnformatted($"Lowest active HP: {replayAnalysis.LowestHpPercent:F0}%");
+            ImGui.TextUnformatted($"Critical-HP snapshots: {replayAnalysis.LowHpSnapshotCount}");
+            ImGui.TextUnformatted($"Rapid-damage snapshots: {replayAnalysis.RapidDamageSnapshotCount}");
+            ImGui.TextUnformatted($"Defensive recommendations: {replayAnalysis.DefensiveRecommendationCount}");
+            ImGui.TextUnformatted($"No-target time: {replayAnalysis.NoTargetPercent:F0}% of active snapshots");
+            ImGui.TextUnformatted($"Target Guard snapshots: {replayAnalysis.GuardingTargetSnapshotCount}");
+            ImGui.TextUnformatted($"Procs consumed / expired: {replayAnalysis.ConsumedProcCount} / {replayAnalysis.ExpiredProcCount}");
             ImGui.TextUnformatted($"Observed actions: {replayAnalysis.InferredActionCount}");
             ImGui.TextUnformatted($"Advice/action windows matched: {replayAnalysis.MatchingActionCount} / {replayAnalysis.EvaluatedActionCount} ({replayAnalysis.MatchPercent:F0}%)");
             ImGui.TextUnformatted($"Recommendation changes: {replayAnalysis.RecommendationChanges} ({replayAnalysis.ChangesPerMinute:F1}/minute)");
@@ -188,13 +242,17 @@ public class MainWindow : Window, IDisposable
 
         ImGui.Separator();
 
-        var rawRecommendation = DecisionEngine.Evaluate(state);
+        var liveTrend = scenario == null && replayState == null
+            ? liveTrendTracker.Update(liveState, DateTime.UtcNow)
+            : null;
+        var decisionTrend = scenario?.Trend ?? liveTrend;
+        var rawRecommendation = DecisionEngine.Evaluate(state, decisionTrend);
         var recommendation = scenario != null || replayState != null
             ? rawRecommendation
             : recommendationStabilizer.Select(rawRecommendation, DateTime.UtcNow);
         ImGui.TextUnformatted($"Recommendation: {recommendation.Recommendation}");
         ImGui.TextUnformatted($"Priority: {recommendation.Priority}");
-        ImGui.TextUnformatted($"Reason: {recommendation.Reason}");
+        ImGui.TextWrapped($"Reason: {recommendation.Reason}");
         if (scenario != null)
         {
             var passed = string.Equals(
@@ -210,6 +268,7 @@ public class MainWindow : Window, IDisposable
         ImGui.TextUnformatted(
             $"Logged in: {(state.LoggedIn ? "YES" : "NO")}");
         ImGui.TextUnformatted($"Territory ID: {state.TerritoryId}");
+        ImGui.TextUnformatted($"Detected PvP mode: {observedMode}");
 
         var player = state.Player;
 
@@ -224,6 +283,8 @@ public class MainWindow : Window, IDisposable
         ImGui.TextUnformatted($"Job: {player.Job}");
         ImGui.TextUnformatted($"HP: {player.Hp:N0} / {player.MaxHp:N0}");
         ImGui.TextUnformatted($"MP: {player.Mp:N0} / {player.MaxMp:N0}");
+        if (decisionTrend is { HpLostPercent: > 0.5f })
+            ImGui.TextUnformatted($"Recent HP loss: {decisionTrend.HpLostPercent:F0}% over {decisionTrend.WindowSeconds:F1}s");
         ImGui.TextUnformatted(
             $"Position: X {player.X:F2}  Y {player.Y:F2}  Z {player.Z:F2}");
 
@@ -235,6 +296,17 @@ public class MainWindow : Window, IDisposable
                     ? $"ready ({action.CurrentCharges} charge(s))"
                     : $"{action.RemainingSeconds:F1}s";
                 ImGui.TextUnformatted($"{action.Name}: {stateText}");
+            }
+        }
+
+        if (player.Statuses.Count > 0 && ImGui.CollapsingHeader("Player statuses"))
+        {
+            foreach (var status in player.Statuses)
+            {
+                var remaining = status.RemainingSeconds is >= 0f
+                    ? $" ({status.RemainingSeconds:F1}s)"
+                    : "";
+                ImGui.TextUnformatted($"{status.Name}{remaining}");
             }
         }
 
@@ -252,6 +324,19 @@ public class MainWindow : Window, IDisposable
             ImGui.TextUnformatted($"Target: {target.Name}");
             ImGui.TextUnformatted($"Target type: {target.Kind}");
             ImGui.TextUnformatted($"Distance: {target.Distance:F1} units");
+            if (target.Hp is uint targetHp && target.MaxHp is uint targetMaxHp && targetMaxHp > 0)
+                ImGui.TextUnformatted($"Target HP: {targetHp:N0} / {targetMaxHp:N0} ({targetHp * 100f / targetMaxHp:F0}%)");
+
+            if (target.Statuses is { Count: > 0 } && ImGui.CollapsingHeader("Target statuses"))
+            {
+                foreach (var status in target.Statuses)
+                {
+                    var remaining = status.RemainingSeconds is >= 0f
+                        ? $" ({status.RemainingSeconds:F1}s)"
+                        : "";
+                    ImGui.TextUnformatted($"{status.Name}{remaining}");
+                }
+            }
         }
     }
 
@@ -262,6 +347,10 @@ public class MainWindow : Window, IDisposable
     private static string RecordingFilePath => Path.Combine(
         Plugin.PluginInterface.ConfigDirectory.FullName,
         "recorded-states.json");
+
+    private static string AnalysisFilePath => Path.Combine(
+        Plugin.PluginInterface.ConfigDirectory.FullName,
+        "replay-analysis.json");
 
     private void SaveAutomaticCapture(GameState state)
     {
@@ -280,17 +369,18 @@ public class MainWindow : Window, IDisposable
             }
 
             var capturedAt = DateTime.UtcNow;
+            var trend = recordingTrendTracker.Update(state, capturedAt);
             var previousState = recordedStates.Count > 0
                 ? recordedStates[^1].State
                 : null;
-            var inferredActions = InferActionUses(previousState, state, capturedAt);
+            var inferredActions = ActionInferenceEngine.Infer(previousState, state, capturedAt);
 
             recordedStates.Add(new RecordedGameState
             {
-                FormatVersion = 3,
+                FormatVersion = 4,
                 CapturedAtUtc = capturedAt,
                 State = state,
-                Recommendation = DecisionEngine.Evaluate(state),
+                Recommendation = DecisionEngine.Evaluate(state, trend),
                 InferredActions = inferredActions
             });
 
@@ -313,134 +403,6 @@ public class MainWindow : Window, IDisposable
         }
     }
 
-    private static List<InferredActionUse> InferActionUses(
-        GameState? previous,
-        GameState current,
-        DateTime detectedAtUtc)
-    {
-        var result = new List<InferredActionUse>();
-        if (previous?.Player == null || current.Player == null)
-            return result;
-
-        var previousActions = new Dictionary<string, ActionCooldownSnapshot>(StringComparer.OrdinalIgnoreCase);
-        foreach (var action in previous.Player.Actions)
-            previousActions[action.Name] = action;
-
-        foreach (var action in current.Player.Actions)
-        {
-            if (!previousActions.TryGetValue(action.Name, out var oldAction))
-                continue;
-
-            // Shared/global recasts can briefly look like a spent charge.
-            // Only a long, action-specific recast is reliable evidence.
-            var actionSpecificRecast = action.TotalSeconds > 2.5f;
-            var chargeSpent = actionSpecificRecast &&
-                              action.CurrentCharges < oldAction.CurrentCharges;
-            var cooldownStarted = !oldAction.IsCoolingDown &&
-                                  action.IsCoolingDown &&
-                                  actionSpecificRecast &&
-                                  action.RemainingSeconds > 2.5f;
-
-            if (!chargeSpent && !cooldownStarted)
-                continue;
-
-            result.Add(new InferredActionUse
-            {
-                Name = action.Name,
-                DetectedAtUtc = detectedAtUtc,
-                PreviousCharges = oldAction.CurrentCharges,
-                CurrentCharges = action.CurrentCharges,
-                CooldownRemainingSeconds = action.RemainingSeconds
-            });
-        }
-
-        // Death clears statuses and would otherwise look like every active
-        // proc was consumed on the killing blow.
-        if (current.Player.Hp > 0)
-            InferProcConsumption(previous.Player.Statuses, current.Player.Statuses, detectedAtUtc, result);
-
-        return result;
-    }
-
-    private static void InferProcConsumption(
-        List<StatusSnapshot> previous,
-        List<StatusSnapshot> current,
-        DateTime detectedAtUtc,
-        List<InferredActionUse> result)
-    {
-        AddConsumedProc(previous, current, "Prefulgence Ready", "Prefulgence", detectedAtUtc, result);
-        AddConsumedProc(previous, current, "Thorned Flourish", "Vice of Thorns", detectedAtUtc, result);
-        AddConsumedProc(previous, current, "Dualcast", "Grand Impact", detectedAtUtc, result);
-
-        if (HasStatus(previous, "Enchanted Riposte") && HasStatus(current, "Enchanted Zwerchhau"))
-            AddInferred("Enchanted Zwerchhau", detectedAtUtc, result);
-        if (HasStatus(previous, "Enchanted Zwerchhau") && HasStatus(current, "Enchanted Redoublement"))
-            AddInferred("Enchanted Redoublement", detectedAtUtc, result);
-        if (WasConsumed(previous, current, "Enchanted Redoublement"))
-            AddInferred("Scorch", detectedAtUtc, result);
-    }
-
-    private static void AddConsumedProc(
-        List<StatusSnapshot> previous,
-        List<StatusSnapshot> current,
-        string statusName,
-        string actionName,
-        DateTime detectedAtUtc,
-        List<InferredActionUse> result)
-    {
-        if (WasConsumed(previous, current, statusName))
-            AddInferred(actionName, detectedAtUtc, result);
-    }
-
-    private static bool WasConsumed(
-        List<StatusSnapshot> previous,
-        List<StatusSnapshot> current,
-        string statusName)
-    {
-        StatusSnapshot? previousStatus = null;
-        foreach (var status in previous)
-        {
-            if (string.Equals(status.Name, statusName, StringComparison.OrdinalIgnoreCase))
-            {
-                previousStatus = status;
-                break;
-            }
-        }
-
-        if (previousStatus == null || HasStatus(current, statusName))
-            return false;
-
-        // Snapshots are two seconds apart. A proc with more than 2.5 seconds
-        // remaining almost certainly disappeared because it was consumed.
-        return previousStatus.RemainingSeconds is null or > 2.5f;
-    }
-
-    private static bool HasStatus(List<StatusSnapshot> statuses, string name)
-    {
-        foreach (var status in statuses)
-        {
-            if (string.Equals(status.Name, name, StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        return false;
-    }
-
-    private static void AddInferred(string name, DateTime detectedAtUtc, List<InferredActionUse> result)
-    {
-        foreach (var existing in result)
-        {
-            if (string.Equals(existing.Name, name, StringComparison.OrdinalIgnoreCase))
-                return;
-        }
-
-        result.Add(new InferredActionUse
-        {
-            Name = name,
-            DetectedAtUtc = detectedAtUtc
-        });
-    }
-
     private void OnFrameworkUpdate(Dalamud.Plugin.Services.IFramework framework)
     {
         if (!isRecording || DateTime.UtcNow < nextAutomaticCaptureUtc)
@@ -454,9 +416,7 @@ public class MainWindow : Window, IDisposable
     {
         try
         {
-            File.WriteAllText(
-                RecordingFilePath,
-                JsonSerializer.Serialize(recordedStates, JsonOptions));
+            WriteJsonAtomically(RecordingFilePath, recordedStates);
         }
         catch (Exception exception)
         {
@@ -513,30 +473,27 @@ public class MainWindow : Window, IDisposable
                 return;
             }
 
-            replayAnalysis = ReplayAnalyzer.Analyze(savedStates);
-            replayMessage = $"Analyzed {savedStates.Count} snapshots with the current decision rules.";
+            SaveReplayReport(savedStates);
+            replayMessage = $"Analyzed {savedStates.Count} snapshots and saved replay-analysis.json.";
         }
         catch (Exception exception)
         {
             replayMessage = $"Could not analyze recording: {exception.Message}";
         }
     }
-}
 
-public sealed class RecordedGameState
-{
-    public int FormatVersion { get; set; } = 3;
-    public DateTime CapturedAtUtc { get; set; }
-    public GameState State { get; set; } = new();
-    public DecisionRecommendation? Recommendation { get; set; }
-    public List<InferredActionUse> InferredActions { get; set; } = new();
-}
+    private void SaveReplayReport(IReadOnlyList<RecordedGameState> states)
+    {
+        var report = ReplayAnalyzer.CreateReport(states, DateTime.UtcNow);
+        replayReport = report;
+        replayAnalysis = report.Analysis;
+        WriteJsonAtomically(AnalysisFilePath, report);
+    }
 
-public sealed class InferredActionUse
-{
-    public string Name { get; set; } = "";
-    public DateTime DetectedAtUtc { get; set; }
-    public uint PreviousCharges { get; set; }
-    public uint CurrentCharges { get; set; }
-    public float CooldownRemainingSeconds { get; set; }
+    private static void WriteJsonAtomically<T>(string path, T value)
+    {
+        var temporaryPath = path + ".tmp";
+        File.WriteAllText(temporaryPath, JsonSerializer.Serialize(value, JsonOptions));
+        File.Move(temporaryPath, path, true);
+    }
 }

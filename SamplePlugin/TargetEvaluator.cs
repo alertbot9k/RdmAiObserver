@@ -20,6 +20,9 @@ public static class TargetEvaluator
             var hpPercent = character.Hp * 100f / character.MaxHp;
             var guarding = HasStatus(character.Statuses, "Guard");
             var monomachy = HasStatus(character.Statuses, "Monomachy");
+            if (HasStatus(character.Statuses, "Invincibility"))
+                continue;
+
             var score = (100f - hpPercent) * 1.5f - character.Distance * 1.2f;
 
             if (guarding)

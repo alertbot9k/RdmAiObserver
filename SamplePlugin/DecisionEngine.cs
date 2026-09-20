@@ -17,6 +17,9 @@ public static class DecisionEngine
     };
 
     public static DecisionRecommendation Evaluate(GameState state)
+        => Evaluate(state, null);
+
+    public static DecisionRecommendation Evaluate(GameState state, CombatTrend? trend)
     {
         var player = state.Player;
         if (player == null || player.MaxHp == 0)
@@ -41,6 +44,7 @@ public static class DecisionEngine
         var crowdControl = FindStatus(player.Statuses, PurifiableStatuses);
         var selfGuarding = HasStatus(player.Statuses, "Guard");
         var targetGuarding = HasStatus(state.Target?.Statuses, "Guard");
+        var targetInvincible = HasStatus(state.Target?.Statuses, "Invincibility");
         var targetHasMonomachy = HasStatus(state.Target?.Statuses, "Monomachy");
         var dualcastReady = HasStatus(player.Statuses, "Dualcast");
         var prefulgenceReady = HasStatus(player.Statuses, "Prefulgence Ready");
@@ -57,6 +61,19 @@ public static class DecisionEngine
 
         if (crowdControl != null && canSpendMp && purifyReady)
             return Recommend(DecisionPriority.Purify, "Purify", $"{crowdControl} is active and at least {CommonActionMpCost:N0} MP is available.");
+
+        if (trend?.IsRapidDamage == true && hp <= 75f)
+        {
+            var action = forteReady
+                ? "Use Forte"
+                : canSpendMp
+                    ? "Use Recuperate"
+                    : guardReady ? "Use Guard" : "Kite toward your team";
+            return Recommend(
+                DecisionPriority.Defend,
+                action,
+                $"HP fell {trend.HpLostPercent:F0}% within {trend.WindowSeconds:F1} seconds; interrupt the offensive sequence and stabilize.");
+        }
 
         if (hp <= 30f && canSpendMp)
             return Recommend(DecisionPriority.Recover, "Use Recuperate", $"HP is critical at {hp:F0}% and Recuperate MP is available.");
@@ -91,6 +108,14 @@ public static class DecisionEngine
             return bestTarget == null
                 ? Recommend(DecisionPriority.Observe, "Regroup and scan", "No opponent is currently inside 25 yalms.")
                 : Recommend(DecisionPriority.Target, $"Target {bestTarget.Name}", DescribeTarget(bestTarget));
+        }
+
+        if (targetInvincible)
+        {
+            return bestTarget != null &&
+                   !string.Equals(state.Target.Name, bestTarget.Name, StringComparison.Ordinal)
+                ? Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", $"{state.Target.Name} has Invincibility; {DescribeTarget(bestTarget)}")
+                : Recommend(DecisionPriority.Target, "Find another target", $"{state.Target.Name} has Invincibility and cannot be pressured effectively.");
         }
 
         if (targetGuarding && state.Target.Distance > 5f)

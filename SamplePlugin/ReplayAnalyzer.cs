@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using SamplePlugin.Windows;
 
 namespace SamplePlugin;
 
@@ -10,27 +9,112 @@ namespace SamplePlugin;
 /// </summary>
 public static class ReplayAnalyzer
 {
+    public static ReplayReport CreateReport(IReadOnlyList<RecordedGameState> snapshots, DateTime generatedAtUtc)
+    {
+        var events = new List<ReplayTimelineEvent>();
+        var trendTracker = new CombatTrendTracker();
+        string? previousRecommendation = null;
+
+        foreach (var snapshot in snapshots)
+        {
+            var trend = trendTracker.Update(snapshot.State, snapshot.CapturedAtUtc);
+            var recommendation = DecisionEngine.Evaluate(snapshot.State, trend);
+            var player = snapshot.State.Player;
+            var hpPercent = player is { MaxHp: > 0 }
+                ? player.Hp * 100f / player.MaxHp
+                : (float?)null;
+
+            if (!string.Equals(previousRecommendation, recommendation.Recommendation, StringComparison.Ordinal))
+            {
+                events.Add(new ReplayTimelineEvent(
+                    snapshot.CapturedAtUtc,
+                    "Recommendation",
+                    recommendation.Recommendation,
+                    recommendation.Reason,
+                    recommendation.Priority.ToString(),
+                    hpPercent,
+                    snapshot.State.Target?.Name));
+                previousRecommendation = recommendation.Recommendation;
+            }
+
+            if (player is not { Hp: > 0 })
+                continue;
+
+            foreach (var action in snapshot.InferredActions)
+            {
+                if (!IsReliable(action))
+                    continue;
+
+                events.Add(new ReplayTimelineEvent(
+                    snapshot.CapturedAtUtc,
+                    "ObservedAction",
+                    action.Name,
+                    action.Evidence,
+                    null,
+                    hpPercent,
+                    snapshot.State.Target?.Name));
+            }
+        }
+
+        return new ReplayReport(1, generatedAtUtc, Analyze(snapshots), events);
+    }
+
     public static ReplayAnalysis Analyze(IReadOnlyList<RecordedGameState> snapshots)
     {
         var counts = new Dictionary<string, int>(StringComparer.Ordinal);
         var actionCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var observedStates = new List<GameState>(snapshots.Count);
         string? previousRecommendation = null;
         var changes = 0;
         var activeSnapshots = 0;
         var inferredActions = 0;
         var evaluatedActions = 0;
         var matchingActions = 0;
+        var deaths = 0;
+        var respawns = 0;
+        var lowHpSnapshots = 0;
+        var noTargetSnapshots = 0;
+        var guardingTargetSnapshots = 0;
+        var consumedProcs = 0;
+        var expiredProcs = 0;
+        var rapidDamageSnapshots = 0;
+        var defensiveRecommendations = 0;
+        var lowestHpPercent = 100f;
+        bool? wasAlive = null;
+        GameState? previousState = null;
         DecisionRecommendation? previousAdvice = null;
+        var trendTracker = new CombatTrendTracker();
 
         foreach (var snapshot in snapshots)
         {
-            var recommendation = DecisionEngine.Evaluate(snapshot.State);
+            var trend = trendTracker.Update(snapshot.State, snapshot.CapturedAtUtc);
+            var recommendation = DecisionEngine.Evaluate(snapshot.State, trend);
+            if (trend?.IsRapidDamage == true)
+                rapidDamageSnapshots++;
+            if (recommendation.Priority is DecisionPriority.Defend or DecisionPriority.Recover or
+                DecisionPriority.Purify or DecisionPriority.Retreat)
+            {
+                defensiveRecommendations++;
+            }
+            observedStates.Add(snapshot.State);
+            expiredProcs += CountExpiredProcs(previousState, snapshot.State);
             counts.TryGetValue(recommendation.Recommendation, out var count);
             counts[recommendation.Recommendation] = count + 1;
 
-            if (snapshot.State.Player is { Hp: > 0 })
+            if (snapshot.State.Player is { Hp: > 0 } player)
             {
                 activeSnapshots++;
+                var hpPercent = player.MaxHp == 0 ? 100f : player.Hp * 100f / player.MaxHp;
+                lowestHpPercent = Math.Min(lowestHpPercent, hpPercent);
+                if (hpPercent <= 30f)
+                    lowHpSnapshots++;
+                if (snapshot.State.Target == null)
+                    noTargetSnapshots++;
+                if (HasStatus(snapshot.State.Target?.Statuses, "Guard"))
+                    guardingTargetSnapshots++;
+                if (wasAlive == false)
+                    respawns++;
+
                 if (previousRecommendation != null &&
                     !string.Equals(previousRecommendation, recommendation.Recommendation, StringComparison.Ordinal))
                 {
@@ -38,12 +122,16 @@ public static class ReplayAnalyzer
                 }
 
                 previousRecommendation = recommendation.Recommendation;
+                wasAlive = true;
             }
             else
             {
                 // A respawn begins a new decision sequence. Do not count the
                 // gap between lives as recommendation churn.
                 previousRecommendation = null;
+                if (wasAlive == true)
+                    deaths++;
+                wasAlive = false;
             }
 
             var reliableActionWindow = false;
@@ -54,6 +142,8 @@ public static class ReplayAnalyzer
                     continue;
 
                 inferredActions++;
+                if (action.Name is "Prefulgence" or "Vice of Thorns" or "Grand Impact")
+                    consumedProcs++;
                 actionCounts.TryGetValue(action.Name, out var actionCount);
                 actionCounts[action.Name] = actionCount + 1;
 
@@ -79,17 +169,72 @@ public static class ReplayAnalyzer
             previousAdvice = snapshot.State.Player is { Hp: > 0 }
                 ? recommendation
                 : null;
+            previousState = snapshot.State;
         }
 
         return new ReplayAnalysis(
             snapshots.Count,
+            snapshots.Count > 1
+                ? Math.Max(0f, (float)(snapshots[^1].CapturedAtUtc - snapshots[0].CapturedAtUtc).TotalSeconds)
+                : 0f,
             activeSnapshots,
             changes,
             inferredActions,
             evaluatedActions,
             matchingActions,
+            PvpModeDetector.Detect(observedStates),
+            deaths,
+            respawns,
+            lowHpSnapshots,
+            noTargetSnapshots,
+            guardingTargetSnapshots,
+            consumedProcs,
+            expiredProcs,
+            rapidDamageSnapshots,
+            defensiveRecommendations,
+            activeSnapshots == 0 ? 0f : lowestHpPercent,
             FindMostCommon(counts),
             FindMostCommon(actionCounts));
+    }
+
+    private static bool HasStatus(IEnumerable<StatusSnapshot>? statuses, string name)
+    {
+        if (statuses == null)
+            return false;
+
+        foreach (var status in statuses)
+        {
+            if (string.Equals(status.Name, name, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static int CountExpiredProcs(GameState? previous, GameState current)
+    {
+        if (previous?.Player == null || current.Player is not { Hp: > 0 })
+            return 0;
+
+        var count = 0;
+        foreach (var procName in new[] { "Prefulgence Ready", "Thorned Flourish", "Dualcast" })
+        {
+            StatusSnapshot? oldProc = null;
+            foreach (var status in previous.Player.Statuses)
+            {
+                if (string.Equals(status.Name, procName, StringComparison.OrdinalIgnoreCase))
+                {
+                    oldProc = status;
+                    break;
+                }
+            }
+
+            if (oldProc?.RemainingSeconds is >= 0f and <= 2.5f &&
+                !HasStatus(current.Player.Statuses, procName))
+                count++;
+        }
+
+        return count;
     }
 
     private static bool IsReliable(InferredActionUse action)
@@ -126,21 +271,60 @@ public static class ReplayAnalyzer
     }
 }
 
+public sealed record ReplayReport(
+    int FormatVersion,
+    DateTime GeneratedAtUtc,
+    ReplayAnalysis Analysis,
+    List<ReplayTimelineEvent> Timeline);
+
+public sealed record ReplayTimelineEvent(
+    DateTime CapturedAtUtc,
+    string Kind,
+    string Description,
+    string? Detail,
+    string? Priority,
+    float? PlayerHpPercent,
+    string? TargetName);
+
 public sealed record ReplayAnalysis(
     int SnapshotCount,
+    float DurationSeconds,
     int ActiveSnapshotCount,
     int RecommendationChanges,
     int InferredActionCount,
     int EvaluatedActionCount,
     int MatchingActionCount,
+    ObservedPvpMode Mode,
+    int DeathCount,
+    int RespawnCount,
+    int LowHpSnapshotCount,
+    int NoTargetSnapshotCount,
+    int GuardingTargetSnapshotCount,
+    int ConsumedProcCount,
+    int ExpiredProcCount,
+    int RapidDamageSnapshotCount,
+    int DefensiveRecommendationCount,
+    float LowestHpPercent,
     string MostCommonRecommendation,
     string MostCommonAction)
 {
-    public float ChangesPerMinute => ActiveSnapshotCount <= 1
+    public float ChangesPerMinute => DurationSeconds <= 0f
         ? 0f
-        : RecommendationChanges / ((ActiveSnapshotCount - 1) * 2f / 60f);
+        : RecommendationChanges / (DurationSeconds / 60f);
 
     public float MatchPercent => EvaluatedActionCount == 0
         ? 0f
         : MatchingActionCount * 100f / EvaluatedActionCount;
+
+    public float NoTargetPercent => ActiveSnapshotCount == 0
+        ? 0f
+        : NoTargetSnapshotCount * 100f / ActiveSnapshotCount;
+
+    public string CalibrationNote => Mode switch
+    {
+        ObservedPvpMode.CrystallineConflict => "Suitable for Crystalline Conflict strategy calibration.",
+        ObservedPvpMode.Frontline => "Frontline recording: useful for technical validation, but not as Crystalline Conflict strategy ground truth.",
+        ObservedPvpMode.RivalWings => "Rival Wings recording: useful for technical validation, but not as Crystalline Conflict strategy ground truth.",
+        _ => "Mode was not identified reliably; treat strategy conclusions cautiously."
+    };
 }

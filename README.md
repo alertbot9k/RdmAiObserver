@@ -9,11 +9,17 @@ move the character, select targets, or issue game commands.
 - Captures player HP, MP, statuses, casts, cooldowns, charges, party members,
   nearby characters, and the current target.
 - Recommends survival, targeting, burst, combo, and positioning decisions.
+- Reacts to rapid HP loss over a rolling three-second combat window.
+- Avoids invincible targets and preserves Guard-piercing melee sequences.
 - Records one snapshot every two seconds for up to ten minutes.
-- Infers reliable cooldown and proc-consumption events without executing actions.
+- Infers cooldown, proc-consumption, and combo events with evidence labels.
 - Replays saved states through the latest decision rules.
-- Analyzes recommendation stability and advice/action-window agreement offline.
-- Includes deterministic offline scenarios with expected PASS/FAIL results.
+- Detects Frontline, Rival Wings, and likely Crystalline Conflict recordings so
+  non-CC sessions are not treated as CC strategy ground truth.
+- Automatically writes a compact `replay-analysis.json` timeline and summary.
+- Analyzes deaths, HP pressure, targeting, recommendation stability, and
+  advice/action-window agreement offline.
+- Runs 39 deterministic offline checks covering decisions and infrastructure.
 
 ## Offline workflow
 
@@ -23,7 +29,8 @@ The observer window includes these development controls:
 - **Run All Offline Checks** validates every expected recommendation at once.
 - **Start/Stop Recording** captures a live test session.
 - **Load Latest Recording** opens its final captured state.
-- **Analyze Recording** re-evaluates the full saved match with the current rules.
+- **Analyze Recording** re-evaluates the full saved match and writes a compact
+  analysis report with the current rules.
 
 Most rule changes can therefore be evaluated without playing another match.
 
