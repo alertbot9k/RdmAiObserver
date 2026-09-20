@@ -33,6 +33,7 @@ public static class DecisionEngine
         var guardReady = IsActionAvailable(player.Actions, "Guard");
         var forteReady = IsActionAvailable(player.Actions, "Forte");
         var corpsReady = IsActionAvailable(player.Actions, "Corps-a-corps");
+        var displacementReady = IsActionAvailable(player.Actions, "Displacement");
         var riposteReady = IsActionAvailable(player.Actions, "Enchanted Riposte");
         var emboldenReady = IsActionAvailable(player.Actions, "Embolden");
         var resolutionReady = IsActionKnownAndAvailable(player.Actions, "Resolution");
@@ -68,9 +69,16 @@ public static class DecisionEngine
 
         if (hp <= 50f && nearbyEnemies >= 2)
         {
-            var action = forteReady ? "Use Forte" : guardReady ? "Use Guard" : "Kite toward your team";
+            var action = forteReady
+                ? "Use Forte"
+                : canSpendMp
+                    ? "Use Recuperate"
+                    : guardReady ? "Use Guard" : "Kite toward your team";
             return Recommend(DecisionPriority.Defend, action, $"HP is {hp:F0}% with {nearbyEnemies} opponents inside 15 yalms.");
         }
+
+        if (hp <= 55f && player.Mp >= 4000 && !prefulgenceReady)
+            return Recommend(DecisionPriority.Recover, "Use Recuperate", $"HP is {hp:F0}% and enough MP remains for two Recuperates.");
 
         if (prefulgenceReady && state.Target != null)
             return Recommend(DecisionPriority.Burst, "Use Prefulgence", "Prefulgence Ready is active; use the instant damage and party healing before it expires.");
@@ -85,27 +93,43 @@ public static class DecisionEngine
                 : Recommend(DecisionPriority.Target, $"Target {bestTarget.Name}", DescribeTarget(bestTarget));
         }
 
-        if (bestTarget != null &&
-            !string.Equals(state.Target.Name, bestTarget.Name, StringComparison.Ordinal) &&
-            targetHp is > 55f && bestTarget.HpPercent + 15f < targetHp)
-        {
-            return Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", DescribeTarget(bestTarget));
-        }
-
         if (targetGuarding && state.Target.Distance > 5f)
+        {
+            if ((enchantedRiposte || enchantedZwerchhau) && state.Target.Distance <= 25f)
+                return Recommend(DecisionPriority.Reposition, "Close distance to continue the melee combo", "The active melee chain ignores Guard, but the target is outside its 5-yalm range.");
+
+            if (corpsReady && riposteReady && hp >= 70f && nearbyEnemies <= 2)
+                return Recommend(DecisionPriority.Burst, "Corps-a-corps, then Enchanted Riposte", "The melee chain ignores Guard, and Monomachy reduces this target's return damage.");
+
             return Recommend(DecisionPriority.Reposition, "Do not spend ranged burst", $"{state.Target.Name} is Guarding; reposition or pressure a different target.");
+        }
 
         if (targetGuarding && state.Target.Distance <= 5f && riposteReady)
             return Recommend(DecisionPriority.Burst, "Use Enchanted Riposte", "The melee chain ignores Guard and is currently available.");
 
         if (enchantedRedoublement && state.Target.Distance <= 25f)
+        {
+            if (displacementReady && state.Target.Distance <= 5f)
+                return Recommend(DecisionPriority.Burst, "Use Displacement, then Scorch", "Displacement strengthens the next spell by 15%; spend that boost on Scorch.");
+
             return Recommend(DecisionPriority.Burst, "Use Scorch", "The recorded combo state shows Enchanted Redoublement completed; continue into Scorch.");
+        }
 
         if (enchantedZwerchhau && state.Target.Distance <= 5f)
             return Recommend(DecisionPriority.Burst, "Use Enchanted Redoublement", "Continue the active melee combo before its state expires.");
 
         if (enchantedRiposte && state.Target.Distance <= 5f)
             return Recommend(DecisionPriority.Burst, "Use Enchanted Zwerchhau", "Continue the active melee combo before its state expires.");
+
+        if ((enchantedRiposte || enchantedZwerchhau) && state.Target.Distance <= 25f)
+            return Recommend(DecisionPriority.Reposition, "Close distance to continue the melee combo", $"The combo is active, but {state.Target.Name} is {state.Target.Distance:F0} yalms away.");
+
+        if (bestTarget != null &&
+            !string.Equals(state.Target.Name, bestTarget.Name, StringComparison.Ordinal) &&
+            targetHp is > 55f && bestTarget.HpPercent + 15f < targetHp)
+        {
+            return Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", DescribeTarget(bestTarget));
+        }
 
         var safeBurstWindow = hp >= 70f && player.Mp >= 4000 && nearbyEnemies <= 2 && nearbyAllies >= 1;
 
@@ -130,7 +154,7 @@ public static class DecisionEngine
             return Recommend(DecisionPriority.Burst, "Start Enchanted Riposte", "Monomachy is active, the melee chain is ready, and local risk is acceptable.");
 
         if (!targetHasMonomachy && corpsReady && riposteReady && state.Target.Distance <= 25f &&
-            hp >= 80f && player.Mp >= 4000 && nearbyEnemies <= 2 && nearbyAllies >= 1)
+            hp >= 70f && player.Mp >= 4000 && nearbyEnemies <= 2 && nearbyAllies >= 1)
         {
             return Recommend(
                 DecisionPriority.Burst,

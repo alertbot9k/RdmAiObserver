@@ -1,8 +1,11 @@
-name: Sample PR Builder for SamplePlugin
+name: Build RdmAiObserver
 
 on:
+  push:
+    branches: [ master ]
   pull_request:
     branches: [ master ]
+  workflow_dispatch:
 
 jobs:
 
@@ -36,4 +39,3 @@ jobs:
         path: .\SamplePlugin\bin\x64\Release\SamplePlugin\*
         if-no-files-found: error
         retention-days: 1
-

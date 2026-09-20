@@ -4,19 +4,12 @@
     <Version>0.0.0.1</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Manifest fields (see https://github.com/goatcorp/DalamudPackager/blob/827d88dc/DalamudPackager/DalamudPackager.cs#L420) -->
-    <Author>your name here</Author>
-    <Name>Sample Plugin</Name>
-    <Punchline>A short one-liner that shows up in /xlplugins.</Punchline>
-    <Description>A brief overview of what your plugin does, highlighting its key features.
-This is shown when the user expands the plugin entry in /xlplugins.</Description>
-    <RepoUrl>https://github.com/goatcorp/SamplePlugin</RepoUrl>
-    <Tags>sample;plugin;goats</Tags>
+    <Author>alertbot9k</Author>
+    <Name>RdmAiObserver</Name>
+    <Punchline>Read-only Red Mage PvP state analysis and recommendations.</Punchline>
+    <Description>Observes Red Mage PvP state, records offline replays, and produces explainable recommendations without controlling the game.</Description>
+    <RepoUrl>https://github.com/alertbot9k/RdmAiObserver</RepoUrl>
+    <Tags>pvp;red mage;observer;analysis</Tags>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Content Include="..\Data\goat.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Visible>false</Visible>
-    </Content>
-  </ItemGroup>
 </Project>

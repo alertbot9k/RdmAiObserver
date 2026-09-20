@@ -26,8 +26,9 @@ public class MainWindow : Window, IDisposable
     private bool isRecording;
     private DateTime nextAutomaticCaptureUtc = DateTime.MinValue;
     private ReplayAnalysis? replayAnalysis;
+    private readonly RecommendationStabilizer recommendationStabilizer = new();
 
-    public MainWindow(Plugin plugin, string goatImagePath)
+    public MainWindow()
         : base("FFXIV Observer##ObserverMain")
     {
         SizeConstraints = new WindowSizeConstraints
@@ -35,6 +36,11 @@ public class MainWindow : Window, IDisposable
             MinimumSize = new Vector2(420, 320),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
         };
+
+        var validation = ScenarioLibrary.ValidateAll();
+        replayMessage = validation.Failures.Count == 0
+            ? $"Offline checks: {validation.Passed}/{validation.Total} passed."
+            : $"Offline checks: {validation.Passed}/{validation.Total} passed. First failure: {validation.Failures[0]}";
 
         Plugin.Framework.Update += OnFrameworkUpdate;
     }
@@ -99,6 +105,7 @@ public class MainWindow : Window, IDisposable
             {
                 replayState = null;
                 scenarioIndex = -1;
+                recommendationStabilizer.Reset();
                 replayMessage = "Live state";
             }
         }
@@ -116,6 +123,15 @@ public class MainWindow : Window, IDisposable
             scenarioIndex = (scenarioIndex + 1) % ScenarioLibrary.Count;
             replayState = null;
             replayMessage = $"Scenario: {ScenarioLibrary.Get(scenarioIndex).Name}";
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("Run All Offline Checks"))
+        {
+            var validation = ScenarioLibrary.ValidateAll();
+            replayMessage = validation.Failures.Count == 0
+                ? $"Offline checks: {validation.Passed}/{validation.Total} passed."
+                : $"Offline checks: {validation.Passed}/{validation.Total} passed. First failure: {validation.Failures[0]}";
         }
 
         if (ImGui.Button(isRecording ? "Stop Recording" : "Start Recording"))
@@ -164,7 +180,7 @@ public class MainWindow : Window, IDisposable
         {
             ImGui.TextUnformatted($"Snapshots: {replayAnalysis.SnapshotCount} ({replayAnalysis.ActiveSnapshotCount} active)");
             ImGui.TextUnformatted($"Observed actions: {replayAnalysis.InferredActionCount}");
-            ImGui.TextUnformatted($"Advice/action matches: {replayAnalysis.MatchingActionCount} / {replayAnalysis.EvaluatedActionCount} ({replayAnalysis.MatchPercent:F0}%)");
+            ImGui.TextUnformatted($"Advice/action windows matched: {replayAnalysis.MatchingActionCount} / {replayAnalysis.EvaluatedActionCount} ({replayAnalysis.MatchPercent:F0}%)");
             ImGui.TextUnformatted($"Recommendation changes: {replayAnalysis.RecommendationChanges} ({replayAnalysis.ChangesPerMinute:F1}/minute)");
             ImGui.TextUnformatted($"Most common advice: {replayAnalysis.MostCommonRecommendation}");
             ImGui.TextUnformatted($"Most common action: {replayAnalysis.MostCommonAction}");
@@ -172,10 +188,23 @@ public class MainWindow : Window, IDisposable
 
         ImGui.Separator();
 
-        var recommendation = DecisionEngine.Evaluate(state);
+        var rawRecommendation = DecisionEngine.Evaluate(state);
+        var recommendation = scenario != null || replayState != null
+            ? rawRecommendation
+            : recommendationStabilizer.Select(rawRecommendation, DateTime.UtcNow);
         ImGui.TextUnformatted($"Recommendation: {recommendation.Recommendation}");
         ImGui.TextUnformatted($"Priority: {recommendation.Priority}");
         ImGui.TextUnformatted($"Reason: {recommendation.Reason}");
+        if (scenario != null)
+        {
+            var passed = string.Equals(
+                recommendation.Recommendation,
+                scenario.ExpectedRecommendation,
+                StringComparison.Ordinal);
+            ImGui.TextUnformatted($"Offline check: {(passed ? "PASS" : "FAIL")}");
+            if (!passed)
+                ImGui.TextUnformatted($"Expected: {scenario.ExpectedRecommendation}");
+        }
         ImGui.Separator();
 
         ImGui.TextUnformatted(
@@ -258,7 +287,7 @@ public class MainWindow : Window, IDisposable
 
             recordedStates.Add(new RecordedGameState
             {
-                FormatVersion = 2,
+                FormatVersion = 3,
                 CapturedAtUtc = capturedAt,
                 State = state,
                 Recommendation = DecisionEngine.Evaluate(state),
@@ -496,7 +525,7 @@ public class MainWindow : Window, IDisposable
 
 public sealed class RecordedGameState
 {
-    public int FormatVersion { get; set; } = 2;
+    public int FormatVersion { get; set; } = 3;
     public DateTime CapturedAtUtc { get; set; }
     public GameState State { get; set; } = new();
     public DecisionRecommendation? Recommendation { get; set; }

@@ -46,6 +46,8 @@ public static class ReplayAnalyzer
                 previousRecommendation = null;
             }
 
+            var reliableActionWindow = false;
+            var windowMatched = false;
             foreach (var action in snapshot.InferredActions)
             {
                 if (snapshot.State.Player is not { Hp: > 0 } || !IsReliable(action))
@@ -57,10 +59,21 @@ public static class ReplayAnalyzer
 
                 if (previousAdvice != null)
                 {
-                    evaluatedActions++;
+                    reliableActionWindow = true;
                     if (MentionsAction(previousAdvice.Recommendation, action.Name))
-                        matchingActions++;
+                        windowMatched = true;
                 }
+            }
+
+            // Several off-global-cooldown actions can occur between two-second
+            // snapshots. One recommendation can only name the first choice,
+            // so score the interval once rather than penalizing every extra
+            // action in the same capture window.
+            if (reliableActionWindow)
+            {
+                evaluatedActions++;
+                if (windowMatched)
+                    matchingActions++;
             }
 
             previousAdvice = snapshot.State.Player is { Hp: > 0 }
