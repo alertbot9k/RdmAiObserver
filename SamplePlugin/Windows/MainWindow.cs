@@ -179,6 +179,17 @@ public class MainWindow : Window, IDisposable
         ImGui.TextUnformatted(
             $"Position: X {player.X:F2}  Y {player.Y:F2}  Z {player.Z:F2}");
 
+        if (player.Actions.Count > 0 && ImGui.CollapsingHeader("Tracked cooldowns"))
+        {
+            foreach (var action in player.Actions)
+            {
+                var stateText = action.IsAvailable
+                    ? $"ready ({action.CurrentCharges} charge(s))"
+                    : $"{action.RemainingSeconds:F1}s";
+                ImGui.TextUnformatted($"{action.Name}: {stateText}");
+            }
+        }
+
         ImGui.Spacing();
         ImGui.Separator();
 

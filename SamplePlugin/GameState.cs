@@ -48,7 +48,8 @@ public sealed class GameState
             Y = position.Y,
             Z = position.Z,
             Statuses = CaptureStatuses(player),
-            Cast = CaptureCast(player)
+            Cast = CaptureCast(player),
+            Actions = ActionCooldownTracker.Capture()
         };
 
         foreach (var member in Plugin.PartyList)
@@ -173,6 +174,7 @@ public sealed class PlayerSnapshot
     public float Z { get; set; }
     public List<StatusSnapshot> Statuses { get; set; } = new();
     public CastSnapshot? Cast { get; set; }
+    public List<ActionCooldownSnapshot> Actions { get; set; } = new();
 }
 
 public sealed class TargetSnapshot
@@ -223,4 +225,16 @@ public sealed class CastSnapshot
     public float CurrentSeconds { get; set; }
     public float TotalSeconds { get; set; }
     public bool IsInterruptible { get; set; }
+}
+
+public sealed class ActionCooldownSnapshot
+{
+    public uint Id { get; set; }
+    public string Name { get; set; } = "";
+    public float TotalSeconds { get; set; }
+    public float ElapsedSeconds { get; set; }
+    public float RemainingSeconds { get; set; }
+    public uint CurrentCharges { get; set; }
+    public bool IsCoolingDown { get; set; }
+    public bool IsAvailable { get; set; }
 }

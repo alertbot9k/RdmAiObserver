@@ -28,6 +28,10 @@ public static class DecisionEngine
             : (float?)null;
         var nearbyEnemies = CountNearbyEnemies(state, 15f);
         var canSpendMp = player.Mp >= CommonActionMpCost;
+        var purifyReady = IsActionAvailable(player.Actions, "Purify");
+        var guardReady = IsActionAvailable(player.Actions, "Guard");
+        var forteReady = IsActionAvailable(player.Actions, "Forte");
+        var corpsReady = IsActionAvailable(player.Actions, "Corps-a-corps");
         var crowdControl = FindStatus(player.Statuses, PurifiableStatuses);
         var selfGuarding = HasStatus(player.Statuses, "Guard");
         var targetGuarding = HasStatus(state.Target?.Statuses, "Guard");
@@ -45,17 +49,23 @@ public static class DecisionEngine
         if (selfGuarding)
             return Recommend(DecisionPriority.Defend, "Hold Guard", "Guard is active; avoid canceling its protection with another action.");
 
-        if (crowdControl != null && canSpendMp)
+        if (crowdControl != null && canSpendMp && purifyReady)
             return Recommend(DecisionPriority.Purify, "Purify", $"{crowdControl} is active and at least {CommonActionMpCost:N0} MP is available.");
 
         if (hp <= 30f && canSpendMp)
             return Recommend(DecisionPriority.Recover, "Use Recuperate", $"HP is critical at {hp:F0}% and Recuperate MP is available.");
 
         if (hp <= 30f)
-            return Recommend(DecisionPriority.Retreat, "Guard and disengage", $"HP is critical at {hp:F0}% but there is not enough MP for Recuperate.");
+        {
+            var action = guardReady ? "Guard and disengage" : "Disengage immediately";
+            return Recommend(DecisionPriority.Retreat, action, $"HP is critical at {hp:F0}% but there is not enough MP for Recuperate.");
+        }
 
         if (hp <= 50f && nearbyEnemies >= 2)
-            return Recommend(DecisionPriority.Defend, "Use Forte or Guard", $"HP is {hp:F0}% with {nearbyEnemies} opponents inside 15 yalms.");
+        {
+            var action = forteReady ? "Use Forte" : guardReady ? "Use Guard" : "Kite toward your team";
+            return Recommend(DecisionPriority.Defend, action, $"HP is {hp:F0}% with {nearbyEnemies} opponents inside 15 yalms.");
+        }
 
         if (prefulgenceReady && state.Target != null)
             return Recommend(DecisionPriority.Burst, "Use Prefulgence", "Prefulgence Ready is active; use the instant damage and party healing before it expires.");
@@ -80,7 +90,9 @@ public static class DecisionEngine
 
         if (targetHp <= 30f && hp >= 55f && nearbyEnemies <= 2)
         {
-            var monomachyText = targetHasMonomachy ? " Monomachy is already active." : " Apply Monomachy with Corps-a-corps if available.";
+            var monomachyText = targetHasMonomachy
+                ? " Monomachy is already active."
+                : corpsReady ? " Corps-a-corps is ready to apply Monomachy." : " Corps-a-corps is unavailable; finish from range.";
             return Recommend(DecisionPriority.FinishTarget, "Commit to the finish", $"{state.Target.Name} is at {targetHp:F0}% HP and the local risk is acceptable.{monomachyText}");
         }
 
@@ -130,6 +142,24 @@ public static class DecisionEngine
         }
 
         return false;
+    }
+
+    private static bool IsActionAvailable(IEnumerable<ActionCooldownSnapshot> actions, string name)
+    {
+        var found = false;
+        foreach (var action in actions)
+        {
+            if (!string.Equals(action.Name, name, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            found = true;
+            if (action.IsAvailable)
+                return true;
+        }
+
+        // Offline scenarios and old recordings have no cooldown list. Preserve
+        // their prior behavior instead of treating every action as unavailable.
+        return !found;
     }
 
     private static int CountNearbyEnemies(GameState state, float range)
