@@ -1,5 +1,8 @@
 using System;
+using System.IO;
+using System.Collections.Generic;
 using System.Numerics;
+using System.Text.Json;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 
@@ -7,6 +10,21 @@ namespace SamplePlugin.Windows;
 
 public class MainWindow : Window, IDisposable
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
+
+    private GameState? replayState;
+    private int scenarioIndex = -1;
+    private string replayMessage = "Live state";
+    private readonly List<RecordedGameState> recordedStates = new();
+    private bool recordingHistoryLoaded;
+    private bool isRecording;
+    private DateTime nextAutomaticCaptureUtc = DateTime.MinValue;
+
     public MainWindow(Plugin plugin, string goatImagePath)
         : base("FFXIV Observer##ObserverMain")
     {
@@ -15,16 +33,119 @@ public class MainWindow : Window, IDisposable
             MinimumSize = new Vector2(420, 320),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
         };
+
+        Plugin.Framework.Update += OnFrameworkUpdate;
     }
 
-    public void Dispose() { }
+    public void Dispose()
+    {
+        Plugin.Framework.Update -= OnFrameworkUpdate;
+    }
 
     public override void Draw()
     {
-        var state = GameState.Capture();
+        var liveState = GameState.Capture();
+        var scenario = scenarioIndex >= 0 ? ScenarioLibrary.Get(scenarioIndex) : null;
+        var state = scenario?.State ?? replayState ?? liveState;
 
+        if (ImGui.Button("Copy JSON"))
+        {
+            var json = JsonSerializer.Serialize(state, JsonOptions);
+            ImGui.SetClipboardText(json);
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("Save Current Snapshot"))
+        {
+            try
+            {
+                File.WriteAllText(ReplayFilePath, JsonSerializer.Serialize(liveState, JsonOptions));
+                replayMessage = "Saved current snapshot.";
+            }
+            catch (Exception exception)
+            {
+                replayMessage = $"Could not save snapshot: {exception.Message}";
+            }
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("Load Saved Snapshot"))
+        {
+            try
+            {
+                if (!File.Exists(ReplayFilePath))
+                {
+                    replayMessage = "No saved snapshot yet.";
+                }
+                else
+                {
+                    replayState = JsonSerializer.Deserialize<GameState>(File.ReadAllText(ReplayFilePath), JsonOptions);
+                    scenarioIndex = -1;
+                    replayMessage = replayState == null ? "Saved snapshot was empty." : "Replay state loaded.";
+                }
+            }
+            catch (Exception exception)
+            {
+                replayMessage = $"Could not load snapshot: {exception.Message}";
+            }
+        }
+
+        if (replayState != null || scenario != null)
+        {
+            ImGui.SameLine();
+            if (ImGui.Button("Use Live State"))
+            {
+                replayState = null;
+                scenarioIndex = -1;
+                replayMessage = "Live state";
+            }
+        }
+
+        if (ImGui.Button("Previous Scenario"))
+        {
+            scenarioIndex = scenarioIndex <= 0 ? ScenarioLibrary.Count - 1 : scenarioIndex - 1;
+            replayState = null;
+            replayMessage = $"Scenario: {ScenarioLibrary.Get(scenarioIndex).Name}";
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("Next Scenario"))
+        {
+            scenarioIndex = (scenarioIndex + 1) % ScenarioLibrary.Count;
+            replayState = null;
+            replayMessage = $"Scenario: {ScenarioLibrary.Get(scenarioIndex).Name}";
+        }
+
+        if (ImGui.Button(isRecording ? "Stop Recording" : "Start Recording"))
+        {
+            isRecording = !isRecording;
+            nextAutomaticCaptureUtc = DateTime.MinValue;
+            replayMessage = isRecording
+                ? "Recording a snapshot every two seconds."
+                : "Recording stopped.";
+
+            if (!isRecording)
+                FlushRecording();
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("Load Latest Recording"))
+        {
+            LoadLatestRecording();
+        }
+
+        ImGui.Spacing();
         ImGui.TextUnformatted("FFXIV Observer - Read Only");
-        ImGui.TextUnformatted("Source: structured GameState snapshot");
+        var source = scenario != null
+            ? $"offline scenario: {scenario.Name}"
+            : replayState != null ? "saved replay state" : "live game state";
+        ImGui.TextUnformatted($"Source: {source}");
+        ImGui.TextUnformatted(replayMessage);
+        ImGui.Separator();
+
+        var recommendation = DecisionEngine.Evaluate(state);
+        ImGui.TextUnformatted($"Recommendation: {recommendation.Recommendation}");
+        ImGui.TextUnformatted($"Reason: {recommendation.Reason}");
         ImGui.Separator();
 
         ImGui.TextUnformatted(
@@ -63,4 +184,110 @@ public class MainWindow : Window, IDisposable
             ImGui.TextUnformatted($"Distance: {target.Distance:F1} units");
         }
     }
+
+    private static string ReplayFilePath => Path.Combine(
+        Plugin.PluginInterface.ConfigDirectory.FullName,
+        "replay-state.json");
+
+    private static string RecordingFilePath => Path.Combine(
+        Plugin.PluginInterface.ConfigDirectory.FullName,
+        "recorded-states.json");
+
+    private void SaveAutomaticCapture(GameState state)
+    {
+        try
+        {
+            if (!recordingHistoryLoaded)
+            {
+                recordingHistoryLoaded = true;
+                if (File.Exists(RecordingFilePath))
+                {
+                    var existingStates = JsonSerializer.Deserialize<List<RecordedGameState>>(
+                        File.ReadAllText(RecordingFilePath), JsonOptions);
+                    if (existingStates != null)
+                        recordedStates.AddRange(existingStates);
+                }
+            }
+
+            recordedStates.Add(new RecordedGameState
+            {
+                CapturedAtUtc = DateTime.UtcNow,
+                State = state
+            });
+
+            // Keep the most recent 10 minutes at one snapshot every two seconds.
+            if (recordedStates.Count > 300)
+                recordedStates.RemoveAt(0);
+
+            // Persist every 30 seconds; stopping the recorder flushes immediately.
+            if (recordedStates.Count % 15 == 0)
+                FlushRecording();
+
+            replayMessage = $"Recording: {recordedStates.Count} snapshots captured.";
+        }
+        catch (Exception exception)
+        {
+            isRecording = false;
+            replayMessage = $"Recording stopped: {exception.Message}";
+        }
+    }
+
+    private void OnFrameworkUpdate(Dalamud.Plugin.Services.IFramework framework)
+    {
+        if (!isRecording || DateTime.UtcNow < nextAutomaticCaptureUtc)
+            return;
+
+        SaveAutomaticCapture(GameState.Capture());
+        nextAutomaticCaptureUtc = DateTime.UtcNow.AddSeconds(2);
+    }
+
+    private void FlushRecording()
+    {
+        try
+        {
+            File.WriteAllText(
+                RecordingFilePath,
+                JsonSerializer.Serialize(recordedStates, JsonOptions));
+        }
+        catch (Exception exception)
+        {
+            isRecording = false;
+            replayMessage = $"Recording stopped: {exception.Message}";
+        }
+    }
+
+    private void LoadLatestRecording()
+    {
+        try
+        {
+            if (!File.Exists(RecordingFilePath))
+            {
+                replayMessage = "No automatic recordings yet.";
+                return;
+            }
+
+            var savedStates = JsonSerializer.Deserialize<List<RecordedGameState>>(
+                File.ReadAllText(RecordingFilePath), JsonOptions);
+
+            if (savedStates == null || savedStates.Count == 0)
+            {
+                replayMessage = "No automatic recordings found.";
+                return;
+            }
+
+            replayState = savedStates[^1].State;
+            scenarioIndex = -1;
+            replayMessage = $"Loaded recording from {savedStates[^1].CapturedAtUtc:HH:mm:ss} UTC.";
+        }
+        catch (Exception exception)
+        {
+            replayMessage = $"Could not load recording: {exception.Message}";
+        }
+    }
+}
+
+public sealed class RecordedGameState
+{
+    public DateTime CapturedAtUtc { get; set; }
+    public GameState State { get; set; } = new();
 }
