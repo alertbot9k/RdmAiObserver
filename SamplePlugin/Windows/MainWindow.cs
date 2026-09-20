@@ -164,6 +164,7 @@ public class MainWindow : Window, IDisposable
         {
             ImGui.TextUnformatted($"Snapshots: {replayAnalysis.SnapshotCount} ({replayAnalysis.ActiveSnapshotCount} active)");
             ImGui.TextUnformatted($"Observed actions: {replayAnalysis.InferredActionCount}");
+            ImGui.TextUnformatted($"Advice/action matches: {replayAnalysis.MatchingActionCount} / {replayAnalysis.EvaluatedActionCount} ({replayAnalysis.MatchPercent:F0}%)");
             ImGui.TextUnformatted($"Recommendation changes: {replayAnalysis.RecommendationChanges} ({replayAnalysis.ChangesPerMinute:F1}/minute)");
             ImGui.TextUnformatted($"Most common advice: {replayAnalysis.MostCommonRecommendation}");
             ImGui.TextUnformatted($"Most common action: {replayAnalysis.MostCommonAction}");
@@ -301,10 +302,15 @@ public class MainWindow : Window, IDisposable
             if (!previousActions.TryGetValue(action.Name, out var oldAction))
                 continue;
 
-            var chargeSpent = action.CurrentCharges < oldAction.CurrentCharges;
+            // Shared/global recasts can briefly look like a spent charge.
+            // Only a long, action-specific recast is reliable evidence.
+            var actionSpecificRecast = action.TotalSeconds > 2.5f;
+            var chargeSpent = actionSpecificRecast &&
+                              action.CurrentCharges < oldAction.CurrentCharges;
             var cooldownStarted = !oldAction.IsCoolingDown &&
                                   action.IsCoolingDown &&
-                                  action.RemainingSeconds > 0.05f;
+                                  actionSpecificRecast &&
+                                  action.RemainingSeconds > 2.5f;
 
             if (!chargeSpent && !cooldownStarted)
                 continue;
@@ -319,7 +325,10 @@ public class MainWindow : Window, IDisposable
             });
         }
 
-        InferProcConsumption(previous.Player.Statuses, current.Player.Statuses, detectedAtUtc, result);
+        // Death clears statuses and would otherwise look like every active
+        // proc was consumed on the killing blow.
+        if (current.Player.Hp > 0)
+            InferProcConsumption(previous.Player.Statuses, current.Player.Statuses, detectedAtUtc, result);
 
         return result;
     }

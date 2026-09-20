@@ -18,6 +18,9 @@ public static class ReplayAnalyzer
         var changes = 0;
         var activeSnapshots = 0;
         var inferredActions = 0;
+        var evaluatedActions = 0;
+        var matchingActions = 0;
+        DecisionRecommendation? previousAdvice = null;
 
         foreach (var snapshot in snapshots)
         {
@@ -36,13 +39,33 @@ public static class ReplayAnalyzer
 
                 previousRecommendation = recommendation.Recommendation;
             }
+            else
+            {
+                // A respawn begins a new decision sequence. Do not count the
+                // gap between lives as recommendation churn.
+                previousRecommendation = null;
+            }
 
             foreach (var action in snapshot.InferredActions)
             {
+                if (snapshot.State.Player is not { Hp: > 0 } || !IsReliable(action))
+                    continue;
+
                 inferredActions++;
                 actionCounts.TryGetValue(action.Name, out var actionCount);
                 actionCounts[action.Name] = actionCount + 1;
+
+                if (previousAdvice != null)
+                {
+                    evaluatedActions++;
+                    if (MentionsAction(previousAdvice.Recommendation, action.Name))
+                        matchingActions++;
+                }
             }
+
+            previousAdvice = snapshot.State.Player is { Hp: > 0 }
+                ? recommendation
+                : null;
         }
 
         return new ReplayAnalysis(
@@ -50,8 +73,27 @@ public static class ReplayAnalyzer
             activeSnapshots,
             changes,
             inferredActions,
+            evaluatedActions,
+            matchingActions,
             FindMostCommon(counts),
             FindMostCommon(actionCounts));
+    }
+
+    private static bool IsReliable(InferredActionUse action)
+    {
+        // Older recordings captured Recuperate's one-second shared cooldown
+        // as an action use. Real tracked cooldowns and proc uses remain valid.
+        return !string.Equals(action.Name, "Recuperate", StringComparison.OrdinalIgnoreCase) ||
+               action.CooldownRemainingSeconds > 2.5f;
+    }
+
+    private static bool MentionsAction(string recommendation, string action)
+    {
+        return recommendation.Contains(action, StringComparison.OrdinalIgnoreCase) ||
+               (string.Equals(action, "Enchanted Zwerchhau", StringComparison.OrdinalIgnoreCase) &&
+                recommendation.Contains("melee combo", StringComparison.OrdinalIgnoreCase)) ||
+               (string.Equals(action, "Enchanted Redoublement", StringComparison.OrdinalIgnoreCase) &&
+                recommendation.Contains("melee combo", StringComparison.OrdinalIgnoreCase));
     }
 
     private static string FindMostCommon(Dictionary<string, int> counts)
@@ -76,10 +118,16 @@ public sealed record ReplayAnalysis(
     int ActiveSnapshotCount,
     int RecommendationChanges,
     int InferredActionCount,
+    int EvaluatedActionCount,
+    int MatchingActionCount,
     string MostCommonRecommendation,
     string MostCommonAction)
 {
     public float ChangesPerMinute => ActiveSnapshotCount <= 1
         ? 0f
         : RecommendationChanges / ((ActiveSnapshotCount - 1) * 2f / 60f);
+
+    public float MatchPercent => EvaluatedActionCount == 0
+        ? 0f
+        : MatchingActionCount * 100f / EvaluatedActionCount;
 }

@@ -43,6 +43,7 @@ public static class ActionCooldownTracker
             var elapsed = manager->GetRecastTimeElapsed(ActionType.Action, id);
             var coolingDown = manager->IsRecastTimerActive(ActionType.Action, id);
             var charges = (uint)manager->GetCurrentCharges(id);
+            var remaining = coolingDown ? Math.Max(0f, total - elapsed) : 0f;
 
             result.Add(new ActionCooldownSnapshot
             {
@@ -50,10 +51,13 @@ public static class ActionCooldownTracker
                 Name = name,
                 TotalSeconds = total,
                 ElapsedSeconds = elapsed,
-                RemainingSeconds = coolingDown ? Math.Max(0f, total - elapsed) : 0f,
+                RemainingSeconds = remaining,
                 CurrentCharges = charges,
                 IsCoolingDown = coolingDown,
-                IsAvailable = charges > 0 || !coolingDown
+                // A short recast is the shared/global cooldown, not this
+                // action's real resource cooldown. Keep showing the next
+                // recommendation while that short recast finishes.
+                IsAvailable = charges > 0 || !coolingDown || total <= 2.5f
             });
         }
 
