@@ -216,8 +216,7 @@ public class MainWindow : Window, IDisposable
         var observedMode = PvpModeDetector.Detect(state);
         ImGui.TextUnformatted($"Source: {source}");
         ImGui.TextUnformatted(replayMessage);
-        if (observedMode is ObservedPvpMode.Frontline or ObservedPvpMode.RivalWings)
-            ImGui.TextWrapped("Mode notice: recommendations are tuned for Crystalline Conflict; this mode is recorded for technical validation only.");
+        ImGui.TextUnformatted($"Detected mode: {observedMode}");
 
         if (replayAnalysis != null && ImGui.CollapsingHeader("Offline replay analysis"))
         {

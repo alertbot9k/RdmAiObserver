@@ -323,8 +323,6 @@ public sealed record ReplayAnalysis(
     public string CalibrationNote => Mode switch
     {
         ObservedPvpMode.CrystallineConflict => "Suitable for Crystalline Conflict strategy calibration.",
-        ObservedPvpMode.Frontline => "Frontline recording: useful for technical validation, but not as Crystalline Conflict strategy ground truth.",
-        ObservedPvpMode.RivalWings => "Rival Wings recording: useful for technical validation, but not as Crystalline Conflict strategy ground truth.",
         _ => "Mode was not identified reliably; treat strategy conclusions cautiously."
     };
 }

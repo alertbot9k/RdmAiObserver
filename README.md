@@ -14,8 +14,8 @@ move the character, select targets, or issue game commands.
 - Records one snapshot every two seconds for up to ten minutes.
 - Infers cooldown, proc-consumption, and combo events with evidence labels.
 - Replays saved states through the latest decision rules.
-- Detects Frontline, Rival Wings, and likely Crystalline Conflict recordings so
-  non-CC sessions are not treated as CC strategy ground truth.
+- Conservatively identifies confirmed Crystalline Conflict recordings from
+  territory or live UI evidence without guessing the duty from status names.
 - Automatically writes a compact `replay-analysis.json` timeline and summary.
 - Analyzes deaths, HP pressure, targeting, recommendation stability, and
   advice/action-window agreement offline.

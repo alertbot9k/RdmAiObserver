@@ -243,16 +243,17 @@ public static class ScenarioLibrary
 
     private static void ValidateModeDetection(List<string> failures)
     {
-        var frontline = CreateState(
+        var crystallineConflict = CreateState(playerHp: 58500, targetHp: 50000);
+        crystallineConflict.TerritoryId = 1293;
+        if (PvpModeDetector.Detect(crystallineConflict) != ObservedPvpMode.CrystallineConflict)
+            failures.Add("PvP mode detector missed the confirmed Crystalline Conflict territory.");
+
+        var misleadingStatus = CreateState(
             playerHp: 58500,
             targetHp: 50000,
             playerStatus: "Frontline March");
-        if (PvpModeDetector.Detect(frontline) != ObservedPvpMode.Frontline)
-            failures.Add("PvP mode detector missed the Frontline marker.");
-
-        var unknown = CreateState(playerHp: 58500, targetHp: 50000);
-        if (PvpModeDetector.Detect(unknown) != ObservedPvpMode.Unknown)
-            failures.Add("PvP mode detector guessed a mode without a reliable marker.");
+        if (PvpModeDetector.Detect(misleadingStatus) != ObservedPvpMode.Unknown)
+            failures.Add("PvP mode detector incorrectly treated a combat status as duty evidence.");
     }
 
     private static void ValidateReplayAnalyzer(List<string> failures)

@@ -3,7 +3,8 @@
 ## 0.2.0
 
 - Added rolling three-second HP-loss detection and rapid-burst defense advice.
-- Added PvP mode detection and warnings when non-CC recordings are analyzed.
+- Added conservative Crystalline Conflict detection from territory/UI evidence;
+  combat status names are never used to infer the duty.
 - Added invincibility-aware target selection.
 - Added compact `replay-analysis.json` reports with recommendation/action events.
 - Added death, respawn, HP, targeting, proc, and recommendation metrics.
