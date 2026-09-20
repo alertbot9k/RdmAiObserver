@@ -24,7 +24,25 @@ public static class ScenarioLibrary
             CreateState(playerHp: 58500, targetHp: 58500, nearbyEnemy: true)),
         new(
             "Survival overrides a finish",
-            CreateState(playerHp: 16000, targetHp: 8000, nearbyEnemy: true))
+            CreateState(playerHp: 16000, targetHp: 8000, nearbyEnemy: true)),
+        new(
+            "Critical HP with Recuperate",
+            CreateState(playerHp: 12000, targetHp: 50000, nearbyEnemy: true, playerMp: 6000)),
+        new(
+            "Critical HP without MP",
+            CreateState(playerHp: 12000, targetHp: 50000, nearbyEnemy: true, playerMp: 1000)),
+        new(
+            "Purifiable crowd control",
+            CreateState(playerHp: 50000, targetHp: 50000, nearbyEnemy: true, playerStatus: "Stun")),
+        new(
+            "Target is guarding",
+            CreateState(playerHp: 50000, targetHp: 20000, nearbyEnemy: true, targetStatus: "Guard")),
+        new(
+            "Dualcast pressure",
+            CreateState(playerHp: 50000, targetHp: 50000, nearbyEnemy: true, playerStatus: "Dualcast")),
+        new(
+            "Prefulgence ready",
+            CreateState(playerHp: 35000, targetHp: 40000, nearbyEnemy: true, playerStatus: "Prefulgence Ready"))
     };
 
     public static int Count => Scenarios.Length;
@@ -35,7 +53,13 @@ public static class ScenarioLibrary
         return Scenarios[normalizedIndex];
     }
 
-    private static GameState CreateState(uint playerHp, uint? targetHp, bool nearbyEnemy)
+    private static GameState CreateState(
+        uint playerHp,
+        uint? targetHp,
+        bool nearbyEnemy,
+        uint playerMp = 10000,
+        string? playerStatus = null,
+        string? targetStatus = null)
     {
         var state = new GameState
         {
@@ -47,7 +71,7 @@ public static class ScenarioLibrary
                 Job = "red mage",
                 Hp = playerHp,
                 MaxHp = 58500,
-                Mp = 10000,
+                Mp = playerMp,
                 MaxMp = 10000
             },
             Party = new List<PartyMemberSnapshot>
@@ -56,6 +80,9 @@ public static class ScenarioLibrary
                 new() { Name = "Ally One", Job = "warrior", Hp = 65000, MaxHp = 65000 }
             }
         };
+
+        if (playerStatus != null)
+            state.Player.Statuses.Add(new StatusSnapshot { Name = playerStatus, RemainingSeconds = 3f });
 
         if (targetHp.HasValue)
         {
@@ -67,6 +94,14 @@ public static class ScenarioLibrary
                 Hp = targetHp.Value,
                 MaxHp = 58500
             };
+
+            if (targetStatus != null)
+            {
+                state.Target.Statuses = new List<StatusSnapshot>
+                {
+                    new() { Name = targetStatus, RemainingSeconds = 3f }
+                };
+            }
         }
 
         if (nearbyEnemy)

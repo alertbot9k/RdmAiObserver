@@ -145,6 +145,7 @@ public class MainWindow : Window, IDisposable
 
         var recommendation = DecisionEngine.Evaluate(state);
         ImGui.TextUnformatted($"Recommendation: {recommendation.Recommendation}");
+        ImGui.TextUnformatted($"Priority: {recommendation.Priority}");
         ImGui.TextUnformatted($"Reason: {recommendation.Reason}");
         ImGui.Separator();
 
