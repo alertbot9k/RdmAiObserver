@@ -255,6 +255,9 @@ public class MainWindow : Window, IDisposable
             ImGui.TextUnformatted($"Critical-HP snapshots: {replayAnalysis.LowHpSnapshotCount}");
             ImGui.TextUnformatted($"Rapid-damage snapshots: {replayAnalysis.RapidDamageSnapshotCount}");
             ImGui.TextUnformatted($"Defensive recommendations: {replayAnalysis.DefensiveRecommendationCount}");
+            ImGui.TextUnformatted($"Sprint opportunities: {replayAnalysis.SprintRecommendedUseOpportunityCount} recommended / {replayAnalysis.SprintMissedOpportunityCount} missed");
+            ImGui.TextUnformatted($"Estimated Sprint-active time: {replayAnalysis.SprintActiveDurationSeconds:F1}s");
+            ImGui.TextUnformatted($"Likely Sprint cancellations: {replayAnalysis.SprintLikelyCancellationCount}");
             ImGui.TextUnformatted($"No-target time: {replayAnalysis.NoTargetPercent:F0}% of engaged snapshots ({replayAnalysis.EngagedSnapshotCount} evaluated)");
             ImGui.TextUnformatted($"Protected / isolated snapshots: {replayAnalysis.ProtectedSnapshotCount} / {replayAnalysis.IsolatedSnapshotCount}");
             ImGui.TextUnformatted($"Target beyond 25 yalms: {replayAnalysis.OutOfRangeTargetSnapshotCount} snapshots");

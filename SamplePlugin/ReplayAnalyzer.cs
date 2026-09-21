@@ -99,6 +99,10 @@ public static class ReplayAnalyzer
         var expiredProcs = 0;
         var rapidDamageSnapshots = 0;
         var defensiveRecommendations = 0;
+        var sprintRecommendedUseOpportunities = 0;
+        var sprintMissedOpportunities = 0;
+        var sprintActiveDurationSeconds = 0f;
+        var sprintLikelyCancellationCount = 0;
         var freshEvidenceSnapshots = 0;
         var incompleteEvidenceSnapshots = 0;
         var lowestHpPercent = 100f;
@@ -106,6 +110,10 @@ public static class ReplayAnalyzer
         GameState? previousState = null;
         DecisionRecommendation? previousAdvice = null;
         var trendTracker = new CombatTrendTracker();
+        DateTime? previousCapturedAtUtc = null;
+        var previousSprintActive = false;
+        var previousSprintUseAdvice = false;
+        var sprintOpportunityPending = false;
 
         foreach (var snapshot in snapshots)
         {
@@ -117,6 +125,38 @@ public static class ReplayAnalyzer
                 incompleteEvidenceSnapshots++;
             var observedActions = ActionInferenceEngine.Infer(
                 previousState, snapshot.State, snapshot.CapturedAtUtc);
+            var sprintRecommendation = SprintEvaluator.Evaluate(snapshot.State);
+            var sprintActive = HasStatus(snapshot.State.Player?.Statuses, "Sprint");
+            var sprintUseAdvice = IsSprintUseAdvice(sprintRecommendation.Recommendation);
+
+            if (previousCapturedAtUtc.HasValue)
+            {
+                var intervalSeconds = Math.Max(0f, (float)(snapshot.CapturedAtUtc - previousCapturedAtUtc.Value).TotalSeconds);
+                if (previousSprintActive && sprintActive)
+                    sprintActiveDurationSeconds += intervalSeconds;
+                else if (previousSprintActive || sprintActive)
+                    sprintActiveDurationSeconds += intervalSeconds / 2f;
+            }
+
+            if (sprintUseAdvice && !previousSprintUseAdvice && !sprintActive)
+            {
+                sprintRecommendedUseOpportunities++;
+                sprintOpportunityPending = true;
+            }
+            if (sprintActive)
+                sprintOpportunityPending = false;
+            else if (sprintOpportunityPending && previousSprintUseAdvice && !sprintUseAdvice)
+            {
+                sprintMissedOpportunities++;
+                sprintOpportunityPending = false;
+            }
+
+            if (previousSprintActive && !sprintActive &&
+                previousState?.Player is { Hp: > 0 } && snapshot.State.Player is { Hp: > 0 } &&
+                (observedActions.Any(IsReliable) || snapshot.State.Target?.Hp is > 0 || facts.EnemiesWithin15Yalms > 0))
+            {
+                sprintLikelyCancellationCount++;
+            }
             if (trend?.IsRapidDamage == true)
                 rapidDamageSnapshots++;
             if (recommendation.Priority is DecisionPriority.Defend or DecisionPriority.Recover or
@@ -218,7 +258,13 @@ public static class ReplayAnalyzer
                 ? recommendation
                 : null;
             previousState = snapshot.State;
+            previousCapturedAtUtc = snapshot.CapturedAtUtc;
+            previousSprintActive = sprintActive;
+            previousSprintUseAdvice = sprintUseAdvice;
         }
+
+        if (sprintOpportunityPending)
+            sprintMissedOpportunities++;
 
         return new ReplayAnalysis(
             snapshots.Count,
@@ -245,6 +291,10 @@ public static class ReplayAnalyzer
             expiredProcs,
             rapidDamageSnapshots,
             defensiveRecommendations,
+            sprintRecommendedUseOpportunities,
+            sprintMissedOpportunities,
+            sprintActiveDurationSeconds,
+            sprintLikelyCancellationCount,
             activeSnapshots == 0 ? 0f : lowestHpPercent,
             FindMostCommon(counts),
             FindMostCommon(actionCounts),
@@ -324,6 +374,9 @@ public static class ReplayAnalyzer
                 recommendation.Contains("melee combo", StringComparison.OrdinalIgnoreCase));
     }
 
+    private static bool IsSprintUseAdvice(string recommendation) =>
+        recommendation.StartsWith("Use Sprint", StringComparison.Ordinal);
+
     private static string FindMostCommon(Dictionary<string, int> counts)
     {
         var bestName = "None";
@@ -379,6 +432,10 @@ public sealed record ReplayAnalysis(
     int ExpiredProcCount,
     int RapidDamageSnapshotCount,
     int DefensiveRecommendationCount,
+    int SprintRecommendedUseOpportunityCount,
+    int SprintMissedOpportunityCount,
+    float SprintActiveDurationSeconds,
+    int SprintLikelyCancellationCount,
     float LowestHpPercent,
     string MostCommonRecommendation,
     string MostCommonAction,

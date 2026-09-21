@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add offline Sprint metrics for recommended-use opportunities, missed opportunities,
+  estimated active duration, and likely cancellation during combat.
 - Add a stateful Crystalline Conflict lifecycle detector for outside, loading,
   countdown, active, dead/respawning, results, and exited transitions.
 - Track PvP Sprint readiness and show a separate, read-only mobility recommendation
