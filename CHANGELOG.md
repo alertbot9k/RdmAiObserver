@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Added typed shadow-policy steps for actions, target selection, movement, and
+  cast cancellation, with conservative abstention for non-concrete advice.
+- Added an in-plugin `Simulate Policy (No Input)` replay workflow and persisted
+  `policy-simulation.json` metrics without issuing game input.
+- Verify every command in multi-step simulated plans instead of retaining only
+  the last command for transition checks.
+- Expanded the executable regression suite to 87 tests.
 - Fixed the plugin/core project boundary so shared policy and safety types compile
   once, allowing the `0.2.4` Dalamud plugin to build cleanly.
 - Marked the xUnit project explicitly so .NET 10 runs its tests instead of

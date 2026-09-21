@@ -13,13 +13,14 @@ public sealed class PolicySimulationCoverageTests
     };
 
     [Fact]
-    public void Cast_interrupt_window_is_planned_and_verified()
+    public void Cast_interrupt_window_without_a_confirmed_action_abstains()
     {
         var state = BaseState();
         state.Target!.Cast = new CastSnapshot { IsInterruptible = true };
         var facts = ObservationFacts.From(state, DateTime.UnixEpoch);
         var plan = PolicyPlanner.Plan(facts);
-        Assert.Contains(plan.Steps, step => step.Action == "Interrupt target cast");
+        Assert.Equal(PolicyPlanStatus.ObserveOnly, plan.Status);
+        Assert.Empty(plan.Steps);
     }
 
     [Fact]
@@ -70,9 +71,11 @@ public sealed class PolicySimulationCoverageTests
     public void Rate_limit_exhaustion_rejects_excess_commands()
     {
         var state = BaseState();
-        state.Player!.Statuses.Add(new StatusSnapshot { Name = "Enchanted Zwerchhau" });
+        state.Player!.Statuses.Add(new StatusSnapshot { Name = "Enchanted Redoublement" });
+        state.Player.Actions.Add(new ActionCooldownSnapshot
+            { Name = "Displacement", IsAvailable = true, CurrentCharges = 1 });
         var result = PolicySimulator.Run([new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch, State = state }],
-            new SafetyPolicy(new HashSet<string> { "Target Enemy", "Continue observed melee combo" }, MaxCommandsPerWindow: 1), DateTime.UnixEpoch);
+            new SafetyPolicy(new HashSet<string> { "Displacement", "Scorch" }, MaxCommandsPerWindow: 1), DateTime.UnixEpoch);
         Assert.True(result.RejectedCommands >= 1);
     }
 }

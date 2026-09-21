@@ -35,9 +35,15 @@ move the character, select targets, or issue game commands.
   engaged-time targeting, and advice/action-window agreement offline.
 - Tolerates legacy or incomplete replay frames with a missing timestamp during
   combat-trend analysis.
-- Runs 57 deterministic scenario checks plus automated tests covering decisions,
+- Runs 57 deterministic scenario checks plus 87 automated tests covering decisions,
   normalization, and replay infrastructure in a standalone project, without
   launching FFXIV.
+- Converts recommendations into typed shadow commands for actions, target
+  selection, movement, and cast cancellation instead of treating every decision
+  as an action press.
+- Replays typed policy commands against recorded transitions, verifies every
+  command in multi-step plans, and writes `policy-simulation.json` without
+  sending game input.
 
 ## Architecture
 
@@ -61,6 +67,9 @@ The observer window includes these development controls:
 - **Load Latest Recording** opens its final captured state.
 - **Analyze Recording** re-evaluates the full saved match and writes a compact
   analysis report with the current rules.
+- **Simulate Policy (No Input)** runs the typed policy and safety layers against
+  the recording, shows acceptance and verification metrics, and writes
+  `policy-simulation.json`. It never controls the game.
 
 Most rule changes can therefore be evaluated without playing another match.
 The current data-derived thresholds are documented in

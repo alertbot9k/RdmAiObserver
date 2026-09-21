@@ -91,4 +91,61 @@ public sealed class PolicySimulationTests
 
         Assert.True(result.VerificationFailures >= 1);
     }
+
+    [Fact]
+    public void Simulation_verifies_typed_target_selection()
+    {
+        var before = new GameState
+        {
+            TerritoryId = 1293, NearbyScanRadius = 60f, NearbyScanComplete = true,
+            Player = new PlayerSnapshot { Hp = 50000, MaxHp = 58500 }
+        };
+        before.NearbyCharacters.Add(new NearbyCharacterSnapshot
+            { ObjectId = 42, Name = "Enemy", Hp = 30000, MaxHp = 58500, Distance = 10f });
+        var after = new GameState
+        {
+            TerritoryId = 1293, NearbyScanRadius = 60f, NearbyScanComplete = true,
+            Player = new PlayerSnapshot { Hp = 50000, MaxHp = 58500 },
+            Target = new TargetSnapshot { ObjectId = 42, Name = "Enemy", Hp = 30000, MaxHp = 58500, Distance = 10f }
+        };
+
+        var result = PolicySimulator.Run([
+            new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch, State = before },
+            new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch.AddSeconds(1), State = after }],
+            new SafetyPolicy(new HashSet<string>()), DateTime.UnixEpoch);
+
+        Assert.True(result.VerifiedCommands >= 1);
+        Assert.Contains(result.Receipts, receipt => receipt.Command.Kind == ControlCommandKind.SelectTarget);
+    }
+
+    [Fact]
+    public void Simulation_verifies_every_command_in_cancel_then_move_plan()
+    {
+        var before = new GameState
+        {
+            TerritoryId = 1293, NearbyScanRadius = 60f, NearbyScanComplete = true,
+            Player = new PlayerSnapshot
+            {
+                Hp = 40000, MaxHp = 58500,
+                Cast = new CastSnapshot { ActionId = PvpActionIds.StandardIssueElixir }
+            }
+        };
+        before.NearbyCharacters.Add(new NearbyCharacterSnapshot
+            { ObjectId = 5, Name = "Enemy", Hp = 50000, MaxHp = 58500, Distance = 10f });
+        var after = new GameState
+        {
+            TerritoryId = 1293, NearbyScanRadius = 60f, NearbyScanComplete = true,
+            Player = new PlayerSnapshot { Hp = 40000, MaxHp = 58500, X = 1f }
+        };
+        after.NearbyCharacters.Add(new NearbyCharacterSnapshot
+            { ObjectId = 5, Name = "Enemy", Hp = 50000, MaxHp = 58500, Distance = 10f });
+
+        var result = PolicySimulator.Run([
+            new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch, State = before },
+            new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch.AddSeconds(1), State = after }],
+            new SafetyPolicy(new HashSet<string>()), DateTime.UnixEpoch);
+
+        Assert.Equal(2, result.VerifiedCommands);
+        Assert.Equal(0, result.VerificationFailures);
+    }
 }

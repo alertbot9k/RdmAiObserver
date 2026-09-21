@@ -29,6 +29,7 @@ public class MainWindow : Window, IDisposable
     private DateTime nextAutomaticCaptureUtc = DateTime.MinValue;
     private ReplayAnalysis? replayAnalysis;
     private ReplayReport? replayReport;
+    private PolicySimulationResult? policySimulation;
     private readonly RecommendationStabilizer recommendationStabilizer = new();
     private readonly CombatTrendTracker liveTrendTracker = new();
     private readonly CombatTrendTracker recordingTrendTracker = new();
@@ -201,11 +202,24 @@ public class MainWindow : Window, IDisposable
             AnalyzeLatestRecording();
         }
 
+        ImGui.SameLine();
+        if (ImGui.Button("Simulate Policy (No Input)"))
+        {
+            SimulateLatestRecording();
+        }
+
         if (replayReport != null)
         {
             ImGui.SameLine();
             if (ImGui.Button("Copy Analysis JSON"))
                 ImGui.SetClipboardText(JsonSerializer.Serialize(replayReport, JsonOptions));
+        }
+
+        if (policySimulation != null)
+        {
+            ImGui.SameLine();
+            if (ImGui.Button("Copy Policy Simulation JSON"))
+                ImGui.SetClipboardText(JsonSerializer.Serialize(policySimulation, JsonOptions));
         }
 
         ImGui.Spacing();
@@ -241,6 +255,21 @@ public class MainWindow : Window, IDisposable
             ImGui.TextUnformatted($"Recommendation changes: {replayAnalysis.RecommendationChanges} ({replayAnalysis.ChangesPerMinute:F1}/minute)");
             ImGui.TextUnformatted($"Most common advice: {replayAnalysis.MostCommonRecommendation}");
             ImGui.TextUnformatted($"Most common action: {replayAnalysis.MostCommonAction}");
+        }
+
+
+        if (policySimulation != null && ImGui.CollapsingHeader("Policy shadow simulation"))
+        {
+            ImGui.TextWrapped("Dry-run only: no target, movement, action, or game input was sent.");
+            ImGui.TextUnformatted($"Snapshots: {policySimulation.SnapshotCount}");
+            ImGui.TextUnformatted($"Planned / observe-only: {policySimulation.PlannedSnapshots} / {policySimulation.ObserveOnlySnapshots}");
+            ImGui.TextUnformatted($"Simulated / rejected commands: {policySimulation.SimulatedCommands} / {policySimulation.RejectedCommands}");
+            ImGui.TextUnformatted($"Acceptance: {policySimulation.AcceptancePercent:F1}%");
+            ImGui.TextUnformatted($"Recovery transitions / safety fallbacks: {policySimulation.RecoveryTransitions} / {policySimulation.SafetyFallbacks}");
+            ImGui.TextUnformatted($"Verified / verification failures: {policySimulation.VerifiedCommands} / {policySimulation.VerificationFailures}");
+            ImGui.TextUnformatted($"Timing / game rejection failures: {policySimulation.TimingFailures} / {policySimulation.GameRejectedCommands}");
+            ImGui.TextUnformatted($"Maximum failure streak: {policySimulation.MaxFailureStreak}");
+            ImGui.TextUnformatted($"Emergency stops: {policySimulation.EmergencyStops}");
         }
 
         ImGui.Separator();
@@ -354,6 +383,10 @@ public class MainWindow : Window, IDisposable
     private static string AnalysisFilePath => Path.Combine(
         Plugin.PluginInterface.ConfigDirectory.FullName,
         "replay-analysis.json");
+
+    private static string PolicySimulationFilePath => Path.Combine(
+        Plugin.PluginInterface.ConfigDirectory.FullName,
+        "policy-simulation.json");
 
     private void SaveAutomaticCapture(GameState state)
     {
@@ -482,6 +515,44 @@ public class MainWindow : Window, IDisposable
         catch (Exception exception)
         {
             replayMessage = $"Could not analyze recording: {exception.Message}";
+        }
+    }
+
+    private void SimulateLatestRecording()
+    {
+        try
+        {
+            if (!File.Exists(RecordingFilePath))
+            {
+                replayMessage = "No automatic recordings yet.";
+                return;
+            }
+
+            var savedStates = JsonSerializer.Deserialize<List<RecordedGameState>>(
+                File.ReadAllText(RecordingFilePath), JsonOptions);
+            if (savedStates == null || savedStates.Count == 0)
+            {
+                replayMessage = "No automatic recordings found.";
+                return;
+            }
+
+            var allowedActions = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "Recuperate", "Forte", "Purify", "Guard", "Standard-issue Elixir",
+                "Enchanted Riposte", "Enchanted Zwerchhau", "Enchanted Redoublement",
+                "Corps-a-corps", "Displacement", "Scorch", "Prefulgence",
+                "Vice of Thorns", "Embolden", "Resolution", "Grand Impact", "Jolt III"
+            };
+            policySimulation = PolicySimulator.Run(
+                savedStates,
+                new SafetyPolicy(allowedActions),
+                savedStates[0].CapturedAtUtc);
+            WriteJsonAtomically(PolicySimulationFilePath, policySimulation);
+            replayMessage = $"Shadow-simulated {savedStates.Count} snapshots with no game input.";
+        }
+        catch (Exception exception)
+        {
+            replayMessage = $"Could not simulate policy: {exception.Message}";
         }
     }
 

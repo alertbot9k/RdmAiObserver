@@ -50,8 +50,7 @@ public static class PolicySimulator
         var maxFailureStreak = 0;
         var verifiedCommands = 0;
         var verificationFailures = 0;
-        ControlCommand? pendingCommand = null;
-        ObservationFacts? pendingFacts = null;
+        var pendingCommands = new List<(ControlCommand Command, ObservationFacts Facts)>();
         var latency = options?.CommandLatency ?? TimeSpan.Zero;
         var maxFailureLimit = options?.MaxFailureStreak ?? 3;
         var wasActionable = false;
@@ -60,13 +59,12 @@ public static class PolicySimulator
         foreach (var recording in recordings)
         {
             var facts = ObservationFacts.From(recording.State, recording.CapturedAtUtc, recording.CapturedAtUtc);
-            if (pendingCommand != null && pendingFacts != null)
+            foreach (var pending in pendingCommands)
             {
-                if (VerifyTransition(pendingCommand, pendingFacts, facts)) verifiedCommands++;
+                if (VerifyTransition(pending.Command, pending.Facts, facts)) verifiedCommands++;
                 else verificationFailures++;
-                pendingCommand = null;
-                pendingFacts = null;
             }
+            pendingCommands.Clear();
             var plan = PolicyPlanner.Plan(facts);
             if (plan.Status == PolicyPlanStatus.ObserveOnly)
             {
@@ -135,10 +133,7 @@ public static class PolicySimulator
                 else if (receipt.Result == ControlResult.Rejected) rejected++;
                 if (receipt.Result == ControlResult.Simulated) failureStreak = 0;
                 if (receipt.Result == ControlResult.Simulated)
-                {
-                    pendingCommand = command;
-                    pendingFacts = facts;
-                }
+                    pendingCommands.Add((command, facts));
             }
             now = recording.CapturedAtUtc;
         }
@@ -148,10 +143,7 @@ public static class PolicySimulator
 
     private static ControlCommand ToCommand(PolicyStep step)
     {
-        var action = step.Action.StartsWith("Use ", StringComparison.Ordinal)
-            ? step.Action[4..]
-            : step.Action;
-        return new ControlCommand(ControlCommandKind.Action, step.Purpose, action,
+        return new ControlCommand(step.Kind, step.Purpose, step.ActionName, step.TargetObjectId,
             Timeout: step.Interruptible ? TimeSpan.FromMilliseconds(500) : null);
     }
 
@@ -163,6 +155,10 @@ public static class PolicySimulator
         { reason = "Target is invulnerable; simulated game rejected the action."; return false; }
         if (command.Kind == ControlCommandKind.Action && facts.LineOfSight == LineOfSightState.Blocked)
         { reason = "Line of sight is blocked; simulated game rejected the action."; return false; }
+        if (command.Kind == ControlCommandKind.SelectTarget && command.TargetObjectId == 0)
+        { reason = "No stable target identity was available."; return false; }
+        if (command.Kind == ControlCommandKind.CancelCast && facts.State.Player?.Cast == null)
+        { reason = "There is no observed cast to cancel."; return false; }
         reason = "Simulated game accepted the command.";
         return true;
     }
@@ -182,6 +178,10 @@ public static class PolicySimulator
         if (command.Kind == ControlCommandKind.Move)
             return before.State.Player != null && after.State.Player != null &&
                    (before.State.Player.X != after.State.Player.X || before.State.Player.Y != after.State.Player.Y || before.State.Player.Z != after.State.Player.Z);
+        if (command.Kind == ControlCommandKind.SelectTarget)
+            return after.State.Target?.ObjectId == command.TargetObjectId;
+        if (command.Kind == ControlCommandKind.CancelCast)
+            return before.State.Player?.Cast != null && after.State.Player?.Cast == null;
         return true;
     }
 }
