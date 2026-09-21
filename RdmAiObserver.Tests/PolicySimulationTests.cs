@@ -48,4 +48,21 @@ public sealed class PolicySimulationTests
 
         Assert.True(result.GameRejectedCommands >= 1);
     }
+
+    [Fact]
+    public void Simulation_counts_commands_that_miss_their_timing_window()
+    {
+        var state = new GameState
+        {
+            TerritoryId = 1293, NearbyScanRadius = 60f, NearbyScanComplete = true,
+            Player = new PlayerSnapshot { Hp = 50000, MaxHp = 58500 },
+            Target = new TargetSnapshot { Name = "Enemy", Hp = 50000, MaxHp = 58500, Distance = 10f }
+        };
+        var result = PolicySimulator.Run(
+            [new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch, State = state }],
+            new SafetyPolicy(new HashSet<string> { "Target Enemy" }), DateTime.UnixEpoch,
+            new PolicySimulator.Options(TimeSpan.FromSeconds(1)));
+
+        Assert.True(result.TimingFailures >= 1);
+    }
 }

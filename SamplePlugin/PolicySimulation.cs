@@ -13,6 +13,7 @@ public sealed record PolicySimulationResult(
     int EmergencyStops,
     int SafetyFallbacks,
     int GameRejectedCommands,
+    int TimingFailures,
     IReadOnlyList<ControlReceipt> Receipts)
 {
     public float AcceptancePercent => SimulatedCommands + RejectedCommands == 0
@@ -22,10 +23,13 @@ public sealed record PolicySimulationResult(
 /// <summary>Runs policy and safety decisions against recordings without game input.</summary>
 public static class PolicySimulator
 {
+    public sealed record Options(TimeSpan? CommandLatency = null);
+
     public static PolicySimulationResult Run(
         IReadOnlyList<RecordedGameState> recordings,
         SafetyPolicy policy,
-        DateTime? startTimeUtc = null)
+        DateTime? startTimeUtc = null,
+        Options? options = null)
     {
         var safety = new OperationalSafety(policy);
         var executor = new DryRunControlExecutor();
@@ -38,6 +42,8 @@ public static class PolicySimulator
         var emergencyStops = 0;
         var safetyFallbacks = 0;
         var gameRejected = 0;
+        var timingFailures = 0;
+        var latency = options?.CommandLatency ?? TimeSpan.Zero;
         var wasActionable = false;
         var now = startTimeUtc ?? DateTime.UtcNow;
 
@@ -71,6 +77,13 @@ public static class PolicySimulator
             foreach (var step in plan.Steps)
             {
                 var command = ToCommand(step);
+                if (command.Timeout is { } timeout && latency > timeout)
+                {
+                    timingFailures++;
+                    receipts.Add(new ControlReceipt(command, ControlResult.Rejected, "Simulated command latency exceeded its timeout window.", now));
+                    recoveries++;
+                    continue;
+                }
                 if (!safety.TryAuthorize(command, facts, now, out var reason))
                 {
                     rejected++;
@@ -94,7 +107,7 @@ public static class PolicySimulator
             now = recording.CapturedAtUtc;
         }
 
-        return new(recordings.Count, planned, observeOnly, simulated, rejected, recoveries, emergencyStops, safetyFallbacks, gameRejected, receipts);
+        return new(recordings.Count, planned, observeOnly, simulated, rejected, recoveries, emergencyStops, safetyFallbacks, gameRejected, timingFailures, receipts);
     }
 
     private static ControlCommand ToCommand(PolicyStep step)
@@ -102,7 +115,8 @@ public static class PolicySimulator
         var action = step.Action.StartsWith("Use ", StringComparison.Ordinal)
             ? step.Action[4..]
             : step.Action;
-        return new ControlCommand(ControlCommandKind.Action, step.Purpose, action);
+        return new ControlCommand(ControlCommandKind.Action, step.Purpose, action,
+            Timeout: step.Interruptible ? TimeSpan.FromMilliseconds(500) : null);
     }
 
     private static bool GameWouldAccept(ControlCommand command, ObservationFacts facts, out string reason)
