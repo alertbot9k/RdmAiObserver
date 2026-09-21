@@ -28,6 +28,8 @@ move the character, select targets, or issue game commands.
   territory or live UI evidence without guessing the duty from status names.
 - Classifies observed lifecycle as loading, active, protected, respawning, or
   unknown so downstream rules can abstain when the match state is uncertain.
+- With an explicitly timestamped stale capture, the decision layer abstains and
+  reports that a fresh observation is required.
 - Automatically writes a compact `replay-analysis.json` timeline and summary.
 - Analyzes deaths, HP pressure, isolation, spawn protection, target range,
   engaged-time targeting, and advice/action-window agreement offline.
