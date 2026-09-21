@@ -19,5 +19,6 @@
     <Compile Include="../SamplePlugin/PvpModeDetector.cs" />
     <Compile Include="../SamplePlugin/PvpActionIds.cs" />
     <Compile Include="../SamplePlugin/ObservationFacts.cs" />
+    <Compile Include="../SamplePlugin/PolicyPlanner.cs" />
   </ItemGroup>
 </Project>
