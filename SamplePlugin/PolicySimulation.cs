@@ -24,7 +24,7 @@ public sealed record PolicySimulationResult(
 /// <summary>Runs policy and safety decisions against recordings without game input.</summary>
 public static class PolicySimulator
 {
-    public sealed record Options(TimeSpan? CommandLatency = null);
+    public sealed record Options(TimeSpan? CommandLatency = null, int MaxFailureStreak = 3);
 
     public static PolicySimulationResult Run(
         IReadOnlyList<RecordedGameState> recordings,
@@ -47,6 +47,7 @@ public static class PolicySimulator
         var failureStreak = 0;
         var maxFailureStreak = 0;
         var latency = options?.CommandLatency ?? TimeSpan.Zero;
+        var maxFailureLimit = options?.MaxFailureStreak ?? 3;
         var wasActionable = false;
         var now = startTimeUtc ?? DateTime.UtcNow;
 
@@ -85,6 +86,8 @@ public static class PolicySimulator
                     timingFailures++;
                     failureStreak++;
                     maxFailureStreak = Math.Max(maxFailureStreak, failureStreak);
+                    if (failureStreak >= maxFailureLimit)
+                    { safety.EmergencyStop("Repeated timing failures in simulation."); emergencyStops++; }
                     receipts.Add(new ControlReceipt(command, ControlResult.Rejected, "Simulated command latency exceeded its timeout window.", now));
                     recoveries++;
                     continue;
@@ -94,6 +97,8 @@ public static class PolicySimulator
                     rejected++;
                     failureStreak++;
                     maxFailureStreak = Math.Max(maxFailureStreak, failureStreak);
+                    if (failureStreak >= maxFailureLimit)
+                    { safety.EmergencyStop("Repeated safety rejections in simulation."); emergencyStops++; }
                     receipts.Add(new ControlReceipt(command, ControlResult.Rejected, reason, now));
                     continue;
                 }
@@ -103,6 +108,8 @@ public static class PolicySimulator
                     gameRejected++;
                     failureStreak++;
                     maxFailureStreak = Math.Max(maxFailureStreak, failureStreak);
+                    if (failureStreak >= maxFailureLimit)
+                    { safety.EmergencyStop("Repeated game rejections in simulation."); emergencyStops++; }
                     receipts.Add(new ControlReceipt(command, ControlResult.Rejected, gameReason, now));
                     recoveries++;
                     continue;
