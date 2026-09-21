@@ -24,6 +24,9 @@ public static class DecisionEngine
 
     public static DecisionRecommendation Evaluate(ObservationFacts facts, CombatTrend? trend = null)
     {
+        if (!facts.CanRecommend)
+            return Recommend(DecisionPriority.Observe, "Wait for a fresh observation", "The captured combat state is stale or incomplete.");
+
         var state = facts.State;
         var player = state.Player;
         if (player == null || player.MaxHp == 0)

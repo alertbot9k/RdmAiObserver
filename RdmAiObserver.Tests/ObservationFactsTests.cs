@@ -50,6 +50,8 @@ public sealed class ObservationFactsTests
 
         Assert.Equal(ObservationEvidence.Observed, facts.Freshness);
         Assert.False(facts.IsFresh);
+        Assert.False(facts.CanRecommend);
+        Assert.Equal("Wait for a fresh observation", DecisionEngine.Evaluate(facts).Recommendation);
     }
 
     [Theory]

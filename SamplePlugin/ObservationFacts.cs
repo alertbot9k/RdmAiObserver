@@ -56,6 +56,8 @@ public sealed record ObservationFacts(
 {
     public bool IsFresh => Freshness == ObservationEvidence.Confirmed;
 
+    public bool CanRecommend => IsFresh && HasPlayer;
+
     public ActionReadiness Readiness(string actionName) =>
         Actions.TryGetValue(actionName, out var readiness) ? readiness : ActionReadiness.Unknown;
 
