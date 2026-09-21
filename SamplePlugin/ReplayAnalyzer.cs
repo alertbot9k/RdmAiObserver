@@ -122,9 +122,10 @@ public static class ReplayAnalyzer
                 if (hpPercent <= 30f)
                     lowHpSnapshots++;
                 var isProtected = HasStatus(player.Statuses, "Invincibility");
-                var nearbyEnemies = CombatProximity.CountEnemies(snapshot.State, 15f);
-                var nearbyEnemiesInSpellRange = CombatProximity.CountEnemies(snapshot.State, 25f);
-                var nearbyAllies = CombatProximity.CountAllies(snapshot.State, 15f);
+                var facts = ObservationFacts.From(snapshot.State, snapshot.CapturedAtUtc, snapshot.CapturedAtUtc);
+                var nearbyEnemies = facts.EnemiesWithin15Yalms;
+                var nearbyEnemiesInSpellRange = facts.EnemiesWithin25Yalms;
+                var nearbyAllies = facts.AlliesWithin15Yalms;
                 if (isProtected)
                     protectedSnapshots++;
                 if (!isProtected && nearbyEnemies >= 2 && nearbyAllies == 0)
