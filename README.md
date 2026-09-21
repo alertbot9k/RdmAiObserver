@@ -58,11 +58,11 @@ and offline checks used by GitHub Actions:
 
 ```sh
 dotnet build RdmAiObserver.Core.slnx --configuration Release
-dotnet run --project RdmAiObserver.Tests --configuration Release --no-build
+dotnet test RdmAiObserver.Core.slnx --configuration Release --no-build
 ```
 
-The test executable prints the pass count and returns a nonzero exit status on
-failure. To build the plugin on Windows, install the Dalamud developer files
+The test runner reports each regression case and returns a nonzero exit status
+on failure. To build the plugin on Windows, install the Dalamud developer files
 or set `DALAMUD_HOME` to their directory, then run:
 
 ```sh

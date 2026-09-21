@@ -18,7 +18,7 @@ jobs:
     - name: Build decision and replay core
       run: dotnet build RdmAiObserver.Core.slnx --configuration Release
     - name: Run offline scenarios
-      run: dotnet run --project RdmAiObserver.Tests --configuration Release --no-build
+      run: dotnet test RdmAiObserver.Core.slnx --configuration Release --no-build
 
   build:
     runs-on: windows-2022
