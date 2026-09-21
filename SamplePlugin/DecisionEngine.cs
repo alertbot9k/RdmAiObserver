@@ -29,8 +29,8 @@ public static class DecisionEngine
         var targetHp = state.Target?.Hp is uint current && state.Target.MaxHp is uint maximum && maximum > 0
             ? Percent(current, maximum)
             : (float?)null;
-        var nearbyEnemies = CountNearbyEnemies(state, 15f);
-        var nearbyEnemiesInSpellRange = CountNearbyEnemies(state, 25f);
+        var nearbyEnemies = CombatProximity.CountEnemies(state, 15f);
+        var nearbyEnemiesInSpellRange = CombatProximity.CountEnemies(state, 25f);
         var nearbyAllies = CountNearbyAllies(state, 15f);
         var canSpendMp = player.Mp >= CommonActionMpCost;
         var purifyReady = IsActionAvailable(player.Actions, "Purify");
@@ -38,7 +38,7 @@ public static class DecisionEngine
         var forteReady = IsActionAvailable(player.Actions, "Forte");
         var corpsReady = IsActionAvailable(player.Actions, "Corps-a-corps");
         var displacementReady = IsActionAvailable(player.Actions, "Displacement");
-        var elixirReady = IsActionAvailable(player.Actions, "Standard-issue Elixir");
+        var elixirReady = IsActionKnownAndAvailable(player.Actions, "Standard-issue Elixir");
         var riposteReady = IsActionAvailable(player.Actions, "Enchanted Riposte");
         var emboldenReady = IsActionAvailable(player.Actions, "Embolden");
         var resolutionReady = IsActionKnownAndAvailable(player.Actions, "Resolution");
@@ -308,23 +308,6 @@ public static class DecisionEngine
         }
 
         return false;
-    }
-
-    private static int CountNearbyEnemies(GameState state, float range)
-    {
-        var partyNames = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var member in state.Party)
-            partyNames.Add(member.Name);
-
-        var count = 0;
-        foreach (var character in state.NearbyCharacters)
-        {
-            if (character.Distance <= range && character.Hp > 0 && character.MaxHp > 0 &&
-                !partyNames.Contains(character.Name))
-                count++;
-        }
-
-        return count;
     }
 
     private static int CountNearbyAllies(GameState state, float range)

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Count a living selected target as a nearby threat when it is missing from
+  the nearby-character list, without counting the same observed target twice.
+- Require observed Elixir readiness before suggesting a new cast.
+- Keep replay trend analysis safe when an incomplete frame lacks a timestamp.
+- Added offline regression coverage for these cases.
+
 ## 0.2.3
 
 - Added safe Standard-issue Elixir recovery advice using the 25-yalm threat scan.

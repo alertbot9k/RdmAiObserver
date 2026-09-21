@@ -38,7 +38,9 @@ public sealed class CombatTrendTracker
             samples.Enqueue(new HpSample(capturedAtUtc, hpPercent));
         }
 
-        var cutoff = capturedAtUtc - Window;
+        var cutoff = capturedAtUtc.Ticks < Window.Ticks
+            ? DateTime.MinValue
+            : capturedAtUtc - Window;
         while (samples.Count > 1 && samples.Peek().CapturedAtUtc < cutoff)
             samples.Dequeue();
 

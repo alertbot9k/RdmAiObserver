@@ -15,6 +15,9 @@ move the character, select targets, or issue game commands.
   while isolated against multiple opponents.
 - Recommends Standard-issue Elixir only in clear recovery windows and recognizes
   observed Elixir casts in old and new recordings.
+- Treats a living selected target as a nearby threat even when that target is
+  absent from the nearby-character list, and requires observed Elixir readiness
+  before recommending a new cast.
 - Records one snapshot every two seconds for up to ten minutes.
 - Infers cooldown, proc-consumption, combo, and medium-confidence Recuperate
   events with evidence labels.
@@ -24,6 +27,8 @@ move the character, select targets, or issue game commands.
 - Automatically writes a compact `replay-analysis.json` timeline and summary.
 - Analyzes deaths, HP pressure, isolation, spawn protection, target range,
   engaged-time targeting, and advice/action-window agreement offline.
+- Tolerates legacy or incomplete replay frames with a missing timestamp during
+  combat-trend analysis.
 - Runs 57 deterministic offline checks covering decisions and infrastructure in
   a standalone project, without launching FFXIV.
 
