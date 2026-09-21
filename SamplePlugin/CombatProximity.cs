@@ -20,8 +20,13 @@ public static class CombatProximity
     public static int CountEnemies(GameState state, float range)
     {
         var partyNames = new HashSet<string>(StringComparer.Ordinal);
+        var partyObjectIds = new HashSet<ulong>();
         foreach (var member in state.Party)
+        {
             partyNames.Add(member.Name);
+            if (member.ObjectId != 0)
+                partyObjectIds.Add(member.ObjectId);
+        }
 
         var count = 0;
         var target = state.Target;
@@ -29,7 +34,7 @@ public static class CombatProximity
         foreach (var character in state.NearbyCharacters)
         {
             if (character.Hp > 0 && character.MaxHp > 0 && character.Distance <= range &&
-                !partyNames.Contains(character.Name))
+                (character.ObjectId != 0 ? !partyObjectIds.Contains(character.ObjectId) : !partyNames.Contains(character.Name)))
             {
                 count++;
                 if (target != null && ((target.ObjectId != 0 && character.ObjectId == target.ObjectId) ||
@@ -39,7 +44,8 @@ public static class CombatProximity
         }
 
         if (target is { Hp: > 0, MaxHp: > 0 } && target.Distance <= range &&
-            !partyNames.Contains(target.Name) && !selectedTargetSeen)
+            (target.ObjectId != 0 ? !partyObjectIds.Contains(target.ObjectId) : !partyNames.Contains(target.Name)) &&
+            !selectedTargetSeen)
             count++;
 
         return count;

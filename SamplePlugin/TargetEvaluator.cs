@@ -8,13 +8,21 @@ public static class TargetEvaluator
     public static TargetCandidate? FindBest(GameState state)
     {
         var partyNames = new HashSet<string>(StringComparer.Ordinal);
+        var partyObjectIds = new HashSet<ulong>();
         foreach (var member in state.Party)
+        {
             partyNames.Add(member.Name);
+            if (member.ObjectId != 0)
+                partyObjectIds.Add(member.ObjectId);
+        }
 
         TargetCandidate? best = null;
         foreach (var character in state.NearbyCharacters)
         {
-            if (partyNames.Contains(character.Name) || character.Hp == 0 || character.MaxHp == 0 || character.Distance > 25f)
+            var isPartyMember = character.ObjectId != 0
+                ? partyObjectIds.Contains(character.ObjectId)
+                : partyNames.Contains(character.Name);
+            if (isPartyMember || character.Hp == 0 || character.MaxHp == 0 || character.Distance > 25f)
                 continue;
 
             var hpPercent = character.Hp * 100f / character.MaxHp;
