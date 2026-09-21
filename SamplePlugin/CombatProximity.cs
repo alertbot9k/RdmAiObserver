@@ -1,11 +1,22 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace SamplePlugin;
 
 /// <summary>Conservative enemy count from a recorded snapshot, including a selected target omitted from the nearby list.</summary>
 public static class CombatProximity
 {
+    public static int CountAllies(GameState state, float range)
+    {
+        var player = state.Player;
+        return state.Party.Count(member => member.Hp > 0 && member.MaxHp > 0 && member.Distance <= range &&
+            (player == null ||
+             (member.ObjectId != 0 && player.ObjectId != 0
+                 ? member.ObjectId != player.ObjectId
+                 : !string.Equals(member.Name, player.Name, StringComparison.Ordinal))));
+    }
+
     public static int CountEnemies(GameState state, float range)
     {
         var partyNames = new HashSet<string>(StringComparer.Ordinal);

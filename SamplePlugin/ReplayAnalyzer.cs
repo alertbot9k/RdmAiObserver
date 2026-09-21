@@ -298,19 +298,6 @@ public static class ReplayAnalyzer
                action.Evidence.StartsWith("MP fell by", StringComparison.Ordinal);
     }
 
-    private static int CountNearbyAllies(GameState state, float range)
-    {
-        var count = 0;
-        foreach (var member in state.Party)
-        {
-            if (member.Hp > 0 && member.Distance <= range &&
-                !string.Equals(member.Name, state.Player?.Name, StringComparison.Ordinal))
-                count++;
-        }
-
-        return count;
-    }
-
     private static bool MentionsAction(string recommendation, string action)
     {
         return recommendation.Contains(action, StringComparison.OrdinalIgnoreCase) ||

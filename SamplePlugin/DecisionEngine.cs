@@ -314,19 +314,6 @@ public static class DecisionEngine
         return false;
     }
 
-    private static int CountNearbyAllies(GameState state, float range)
-    {
-        var count = 0;
-        foreach (var member in state.Party)
-        {
-            if (member.Distance <= range && member.Hp > 0 &&
-                !string.Equals(member.Name, state.Player?.Name, StringComparison.Ordinal))
-                count++;
-        }
-
-        return count;
-    }
-
     private static string DescribeTarget(TargetCandidate target)
     {
         var guardText = target.IsGuarding ? ", Guarding" : "";
