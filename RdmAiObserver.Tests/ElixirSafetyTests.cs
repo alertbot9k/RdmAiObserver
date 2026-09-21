@@ -52,6 +52,22 @@ public sealed class ElixirSafetyTests
     }
 
     [Fact]
+    public void Object_identity_prevents_merging_distinct_same_named_targets()
+    {
+        var state = RecoveryState();
+        state.Target = new TargetSnapshot
+        {
+            ObjectId = 100, Name = "Same Name", Kind = "Pc", Distance = 12f, Hp = 50000, MaxHp = 58500
+        };
+        state.NearbyCharacters.Add(new NearbyCharacterSnapshot
+        {
+            ObjectId = 200, Name = "Same Name", Kind = "Pc", Distance = 12f, Hp = 50000, MaxHp = 58500
+        });
+
+        Assert.Equal(2, CombatProximity.CountEnemies(state, 25f));
+    }
+
+    [Fact]
     public void Selected_enemy_interrupts_existing_elixir_cast()
     {
         var state = RecoveryState();

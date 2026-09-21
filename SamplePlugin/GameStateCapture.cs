@@ -48,6 +48,7 @@ public static class GameStateCapture
         {
             state.Party.Add(new PartyMemberSnapshot
             {
+                ObjectId = member.EntityId,
                 Name = member.Name.ToString(),
                 Job = member.ClassJob.IsValid
                     ? member.ClassJob.Value.Name.ToString()
@@ -71,6 +72,7 @@ public static class GameStateCapture
 
             state.NearbyCharacters.Add(new NearbyCharacterSnapshot
             {
+                ObjectId = character.EntityId,
                 Name = character.Name.ToString(),
                 Job = character.ClassJob.IsValid
                     ? character.ClassJob.Value.Name.ToString()
@@ -91,6 +93,7 @@ public static class GameStateCapture
         {
             state.Target = new TargetSnapshot
             {
+                ObjectId = target.EntityId,
                 Name = target.Name.ToString(),
                 Kind = target.ObjectKind.ToString(),
                 Distance = System.Numerics.Vector3.Distance(

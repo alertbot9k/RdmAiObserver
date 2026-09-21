@@ -21,7 +21,8 @@ public static class CombatProximity
                 !partyNames.Contains(character.Name))
             {
                 count++;
-                if (target != null && string.Equals(character.Name, target.Name, StringComparison.Ordinal))
+                if (target != null && ((target.ObjectId != 0 && character.ObjectId == target.ObjectId) ||
+                    (target.ObjectId == 0 && string.Equals(character.Name, target.Name, StringComparison.Ordinal))))
                     selectedTargetSeen = true;
             }
         }

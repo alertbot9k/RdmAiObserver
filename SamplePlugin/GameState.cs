@@ -31,6 +31,7 @@ public sealed class PlayerSnapshot
 
 public sealed class TargetSnapshot
 {
+    public ulong ObjectId { get; set; }
     public string Name { get; set; } = "";
     public string Kind { get; set; } = "";
     public float Distance { get; set; }
@@ -52,6 +53,7 @@ public sealed class StatusSnapshot
 
 public sealed class NearbyCharacterSnapshot
 {
+    public ulong ObjectId { get; set; }
     public string Name { get; set; } = "";
     public string Job { get; set; } = "";
     public string Kind { get; set; } = "";
@@ -65,6 +67,7 @@ public sealed class NearbyCharacterSnapshot
 
 public sealed class PartyMemberSnapshot
 {
+    public ulong ObjectId { get; set; }
     public string Name { get; set; } = "";
     public string Job { get; set; } = "";
     public uint Hp { get; set; }
