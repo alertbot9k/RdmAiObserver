@@ -210,6 +210,7 @@ public class MainWindow : Window, IDisposable
 
         ImGui.Spacing();
         ImGui.TextUnformatted("FFXIV Observer - Read Only");
+        ImGui.TextUnformatted($"Build {BuildInfo.Version} ({BuildInfo.Milestone})");
         var source = scenario != null
             ? $"offline scenario: {scenario.Name}"
             : replayState != null ? "saved replay state" : "live game state";

@@ -24,5 +24,6 @@
     <Compile Include="../SamplePlugin/OperationalSafety.cs" />
     <Compile Include="../SamplePlugin/PolicySimulation.cs" />
     <Compile Include="../SamplePlugin/PolicyCorpusEvaluator.cs" />
+    <Compile Include="../SamplePlugin/BuildInfo.cs" />
   </ItemGroup>
 </Project>
