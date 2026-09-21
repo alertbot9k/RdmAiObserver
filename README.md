@@ -1,78 +1,81 @@
-> ⚠️ **Don't click Fork!**
-> 
-> This is a GitHub Template repo. If you want to use this for a plugin, [use this template][new-repo] to make a new repo!
->
-> ![image](https://github.com/goatcorp/SamplePlugin/assets/16760685/d9732094-e1ed-4769-a70b-58ed2b92580c)
+# RdmAiObserver
 
-# SamplePlugin
+RdmAiObserver is a read-only Dalamud development plugin for observing Red Mage
+PvP state and producing explainable recommendations. It does not press buttons,
+move the character, select targets, or issue game commands.
 
-[![Use This Template badge](https://img.shields.io/badge/Use%20This%20Template-0?logo=github&labelColor=grey)][new-repo]
+## Current capabilities
 
+- Captures player HP, MP, statuses, casts, cooldowns, charges, party members,
+  nearby characters, and the current target.
+- Recommends survival, targeting, burst, combo, and positioning decisions.
+- Reacts to rapid HP loss over a rolling three-second combat window.
+- Avoids invincible targets and preserves Guard-piercing melee sequences.
+- Preserves ranged procs outside 25 yalms and avoids opening new burst windows
+  while isolated against multiple opponents.
+- Recommends Standard-issue Elixir only in clear recovery windows and recognizes
+  observed Elixir casts in old and new recordings.
+- Records one snapshot every two seconds for up to ten minutes.
+- Infers cooldown, proc-consumption, combo, and medium-confidence Recuperate
+  events with evidence labels.
+- Replays saved states through the latest decision and action-inference rules.
+- Conservatively identifies confirmed Crystalline Conflict recordings from
+  territory or live UI evidence without guessing the duty from status names.
+- Automatically writes a compact `replay-analysis.json` timeline and summary.
+- Analyzes deaths, HP pressure, isolation, spawn protection, target range,
+  engaged-time targeting, and advice/action-window agreement offline.
+- Runs 57 deterministic offline checks covering decisions and infrastructure in
+  a standalone project, without launching FFXIV.
 
-Simple example plugin for Dalamud.
+## Architecture
 
-This is not designed to be the simplest possible example, but it is also not designed to cover everything you might want to do. For more detailed questions, come ask in [the Discord](https://discord.gg/holdshift).
+`SamplePlugin` owns Dalamud services, game-state capture, the recorder, and the
+observer window. `RdmAiObserver.Core` compiles the game-state models, combat
+decisions, target selection, scenarios, action inference, and replay analysis
+without Dalamud references. The plugin references the same core assembly that
+the offline checks use. `RdmAiObserver.Tests` runs the existing scenario and
+infrastructure checks as a command-line regression suite.
 
-## Main Points
+## Offline workflow
 
-* Simple functional plugin
-  * Slash command
-  * Main UI
-  * Settings UI
-  * Image loading
-  * Plugin json
-* Simple, slightly-improved plugin configuration handling
-* Project organization
-  * Copies all necessary plugin files to the output directory
-    * Does not copy dependencies that are provided by dalamud
-    * Output directory can be zipped directly and have exactly what is required
-  * Hides data files from visual studio to reduce clutter
-    * Also allows having data files in different paths than VS would usually allow if done in the IDE directly
+The observer window includes these development controls:
 
+- **Previous/Next Scenario** selects a deterministic test state.
+- **Run All Offline Checks** validates every expected recommendation at once.
+- **Start/Stop Recording** captures a live test session.
+- **Load Latest Recording** opens its final captured state.
+- **Analyze Recording** re-evaluates the full saved match and writes a compact
+  analysis report with the current rules.
 
-The intention is less that any of this is used directly in other projects, and more to show how similar things can be done.
+Most rule changes can therefore be evaluated without playing another match.
+The current data-derived thresholds are documented in
+[`docs/cc-recording-baseline.md`](docs/cc-recording-baseline.md).
 
-## How To Use
+## Build and test
 
-### Getting Started
+With the .NET 10 SDK on Linux, macOS, or Windows, run the same portable build
+and offline checks used by GitHub Actions:
 
-To begin, [clone this template repository][new-repo] to your own GitHub account. This will automatically bring in everything you need to get a jumpstart on development. You do not need to fork this repository unless you intend to contribute modifications to it.
+```sh
+dotnet build RdmAiObserver.Core.slnx --configuration Release
+dotnet test RdmAiObserver.Core.slnx --configuration Release --no-build
+```
 
-Be sure to also check out the [Dalamud Developer Docs][dalamud-docs] for helpful information about building your own plugin. The Developer Docs includes helpful information about all sorts of things, including [how to submit][submit] your newly-created plugin to the official repository. Assuming you use this template repository, the provided project build configuration and license are already chosen to make everything a breeze.
+The test runner reports each regression case and returns a nonzero exit status
+on failure. To build the plugin on Windows, install the Dalamud developer files
+or set `DALAMUD_HOME` to their directory, then run:
 
-[new-repo]: https://github.com/new?template_name=SamplePlugin&template_owner=goatcorp
-[dalamud-docs]: https://dalamud.dev
-[submit]: https://dalamud.dev/plugin-publishing/submission
+```sh
+dotnet build SamplePlugin.slnx --configuration Release
+```
 
-### Prerequisites
+The output is under `SamplePlugin/bin/x64/Release`. GitHub Actions runs the
+portable checks on Linux and the plugin build on Windows. The downloaded
+Dalamud distribution and the plugin still need Windows and in-game validation
+after game or Dalamud API updates.
 
-SamplePlugin assumes all the following prerequisites are met:
+## Safety boundary
 
-* XIVLauncher, FINAL FANTASY XIV, and Dalamud have all been installed and the game has been run with Dalamud at least once.
-* XIVLauncher is installed to its default directories and configurations.
-  * If a custom path is required for Dalamud's dev directory, it must be set with the `DALAMUD_HOME` environment variable.
-* A .NET Core 8 SDK has been installed and configured, or is otherwise available. (In most cases, the IDE will take care of this.)
-
-### Building
-
-1. Open up `SamplePlugin.sln` in your C# editor of choice (likely [Visual Studio](https://visualstudio.microsoft.com) or [JetBrains Rider](https://www.jetbrains.com/rider/)).
-2. Build the solution. By default, this will build a `Debug` build, but you can switch to `Release` in your IDE.
-3. The resulting plugin can be found at `SamplePlugin/bin/x64/Debug/SamplePlugin.dll` (or `Release` if appropriate.)
-
-### Activating in-game
-
-1. Launch the game and use `/xlsettings` in chat or `xlsettings` in the Dalamud Console to open up the Dalamud settings.
-    * In here, go to `Experimental`, and add the full path to the `SamplePlugin.dll` to the list of Dev Plugin Locations.
-2. Next, use `/xlplugins` (chat) or `xlplugins` (console) to open up the Plugin Installer.
-    * In here, go to `Dev Tools > Installed Dev Plugins`, and the `SamplePlugin` should be visible. Enable it.
-3. You should now be able to use `/pmycommand` (chat) or `pmycommand` (console)!
-
-Note that you only need to add it to the Dev Plugin Locations once (Step 1); it is preserved afterwards. You can disable, enable, or load your plugin on startup through the Plugin Installer.
-
-### Reconfiguring for your own uses
-
-Replace all references to `SamplePlugin` in all the files and filenames with your desired name, then start building the plugin of your dreams. You'll figure it out 😁
-
-Dalamud will load the JSON file (by default, `SamplePlugin/SamplePlugin.json`) next to your DLL and use it for metadata, including the description for your plugin in the Plugin Installer. Make sure to update this with information relevant to _your_ plugin!
-
-All participation in this repository is governed by our [Code of Conduct](https://dalamud.dev/code-of-conduct). If you used AI tooling at any point, review the [AI Usage Policy](https://dalamud.dev/plugin-publishing/ai-policy) and disclose your level of AI use. Entirely AI-generated submissions will be rejected, and undisclosed AI use may result in a ban.
+All game integration in this repository is observational. `ActionCooldownTracker`
+reads action state through Dalamud/FFXIVClientStructs, while the decision engine
+returns text recommendations only.

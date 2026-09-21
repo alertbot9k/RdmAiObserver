@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="RdmAiObserver.Core/RdmAiObserver.Core.csproj" />
+  <Project Path="RdmAiObserver.Tests/RdmAiObserver.Tests.csproj" />
+</Solution>

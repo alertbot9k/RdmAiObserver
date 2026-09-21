@@ -1,0 +1,196 @@
+From fd6c1498813966fadfad46b26ee6427b3dbcc685 Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Sun, 20 Sep 2026 10:57:33 +0100
+Subject: [PATCH] Add offline recommendation scenarios
+
+---
+ README.md                            |  9 ++++-
+ SamplePlugin/RecommendationEngine.cs | 49 ++++++++++++++++++++++++++++
+ SamplePlugin/ScenarioLibrary.cs      | 46 ++++++++++++++++++++++++++
+ SamplePlugin/Windows/MainWindow.cs   | 32 ++++++++++++++++--
+ 4 files changed, 133 insertions(+), 3 deletions(-)
+ create mode 100644 SamplePlugin/RecommendationEngine.cs
+ create mode 100644 SamplePlugin/ScenarioLibrary.cs
+
+diff --git a/README.md b/README.md
+index f792e33..90eab7b 100644
+--- a/README.md
++++ b/README.md
+@@ -4,7 +4,14 @@
+ >
+ > ![image](https://github.com/goatcorp/SamplePlugin/assets/16760685/d9732094-e1ed-4769-a70b-58ed2b92580c)
+ 
+-# SamplePlugin
++# RDM AI Observer
++
++A read-only Dalamud development plugin for capturing structured FFXIV state and
++testing explainable Red Mage PvP recommendations. It does not send inputs or
++execute actions.
++
++The observer can switch between live state and built-in offline scenarios, so
++recommendation rules can be tested outside a Crystalline Conflict match.
+ 
+ [![Use This Template badge](https://img.shields.io/badge/Use%20This%20Template-0?logo=github&labelColor=grey)][new-repo]
+ 
+diff --git a/SamplePlugin/RecommendationEngine.cs b/SamplePlugin/RecommendationEngine.cs
+new file mode 100644
+index 0000000..5942198
+--- /dev/null
++++ b/SamplePlugin/RecommendationEngine.cs
+@@ -0,0 +1,49 @@
++using System;
++
++namespace SamplePlugin;
++
++public sealed record Recommendation(string Action, string Reason, RecommendationPriority Priority);
++
++public enum RecommendationPriority
++{
++    Low,
++    Medium,
++    High,
++    Critical
++}
++
++public static class RecommendationEngine
++{
++    public static Recommendation Evaluate(GameState state)
++    {
++        var player = state.Player;
++
++        if (!state.LoggedIn || player == null)
++            return new Recommendation("WAIT", "No player state is available.", RecommendationPriority.Low);
++
++        if (player.MaxHp == 0)
++            return new Recommendation("WAIT", "Maximum HP has not loaded yet.", RecommendationPriority.Low);
++
++        var hpPercent = 100f * player.Hp / player.MaxHp;
++
++        if (hpPercent <= 25f)
++            return new Recommendation("RECUPERATE / DISENGAGE", "HP is critically low.", RecommendationPriority.Critical);
++
++        if (hpPercent <= 45f)
++            return new Recommendation("RECUPERATE", "Restore HP before committing.", RecommendationPriority.High);
++
++        if (state.Target == null)
++            return new Recommendation("SELECT TARGET", "No target is selected.", RecommendationPriority.Medium);
++
++        if (state.Target.Distance > 25f)
++            return new Recommendation("CLOSE DISTANCE", "Target is outside practical attack range.", RecommendationPriority.Medium);
++
++        if (state.Target.Distance > 15f)
++            return new Recommendation("RANGED PRESSURE", "Target is at long range.", RecommendationPriority.Medium);
++
++        if (state.Target.Distance > 5f)
++            return new Recommendation("BUILD PRESSURE", "Target is in mid-range.", RecommendationPriority.Medium);
++
++        return new Recommendation("MELEE COMMIT CHECK", "Target is in melee range and HP is stable.", RecommendationPriority.High);
++    }
++}
+diff --git a/SamplePlugin/ScenarioLibrary.cs b/SamplePlugin/ScenarioLibrary.cs
+new file mode 100644
+index 0000000..d0f76b6
+--- /dev/null
++++ b/SamplePlugin/ScenarioLibrary.cs
+@@ -0,0 +1,46 @@
++using System.Collections.Generic;
++
++namespace SamplePlugin;
++
++public sealed record ObserverScenario(string Name, string Description, GameState State);
++
++public static class ScenarioLibrary
++{
++    public static IReadOnlyList<ObserverScenario> All { get; } =
++    [
++        Create("Healthy, no target", "Validates target selection advice.", 100, null),
++        Create("Long range target", "Validates ranged positioning advice.", 100, 22f),
++        Create("Mid-range target", "Validates pressure-building advice.", 82, 10f),
++        Create("Melee opportunity", "Validates a possible melee commit.", 90, 3f),
++        Create("Low HP", "Validates healing priority.", 40, 8f),
++        Create("Critical HP", "Validates emergency survival priority.", 20, 3f)
++    ];
++
++    private static ObserverScenario Create(string name, string description, uint hpPercent, float? distance)
++    {
++        const uint maxHp = 10000;
++
++        return new ObserverScenario(name, description, new GameState
++        {
++            LoggedIn = true,
++            TerritoryId = 0,
++            Player = new PlayerSnapshot
++            {
++                Name = "Scenario RDM",
++                Job = "Red Mage",
++                Hp = maxHp * hpPercent / 100,
++                MaxHp = maxHp,
++                Mp = 10000,
++                MaxMp = 10000
++            },
++            Target = distance.HasValue
++                ? new TargetSnapshot
++                {
++                    Name = "Training Target",
++                    Kind = "PlayerCharacter",
++                    Distance = distance.Value
++                }
++                : null
++        });
++    }
++}
+diff --git a/SamplePlugin/Windows/MainWindow.cs b/SamplePlugin/Windows/MainWindow.cs
+index dc562bf..67cad92 100644
+--- a/SamplePlugin/Windows/MainWindow.cs
++++ b/SamplePlugin/Windows/MainWindow.cs
+@@ -7,6 +7,9 @@ namespace SamplePlugin.Windows;
+ 
+ public class MainWindow : Window, IDisposable
+ {
++    private bool useScenario;
++    private int selectedScenario;
++
+     public MainWindow(Plugin plugin, string goatImagePath)
+         : base("FFXIV Observer##ObserverMain")
+     {
+@@ -21,10 +24,35 @@ public class MainWindow : Window, IDisposable
+ 
+     public override void Draw()
+     {
+-        var state = GameState.Capture();
++        ImGui.Checkbox("Use test scenario", ref useScenario);
++
++        if (useScenario)
++        {
++            var scenarios = ScenarioLibrary.All;
++            var names = new string[scenarios.Count];
++
++            for (var index = 0; index < scenarios.Count; index++)
++                names[index] = scenarios[index].Name;
++
++            ImGui.Combo("Scenario", ref selectedScenario, names, names.Length);
++            ImGui.TextWrapped(scenarios[selectedScenario].Description);
++        }
++
++        var state = useScenario
++            ? ScenarioLibrary.All[selectedScenario].State
++            : GameState.Capture();
++
++        var recommendation = RecommendationEngine.Evaluate(state);
+ 
+         ImGui.TextUnformatted("FFXIV Observer - Read Only");
+-        ImGui.TextUnformatted("Source: structured GameState snapshot");
++        ImGui.TextUnformatted(useScenario
++            ? "Source: offline test scenario"
++            : "Source: structured live GameState snapshot");
++        ImGui.Separator();
++
++        ImGui.TextUnformatted($"Recommendation: {recommendation.Action}");
++        ImGui.TextWrapped($"Why: {recommendation.Reason}");
++        ImGui.TextUnformatted($"Priority: {recommendation.Priority}");
+         ImGui.Separator();
+ 
+         ImGui.TextUnformatted(
+-- 
+2.51.1
+

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../SamplePlugin/GameState.cs" />
+    <Compile Include="../SamplePlugin/DecisionEngine.cs" />
+    <Compile Include="../SamplePlugin/TargetEvaluator.cs" />
+    <Compile Include="../SamplePlugin/ScenarioLibrary.cs" />
+    <Compile Include="../SamplePlugin/ReplayAnalyzer.cs" />
+    <Compile Include="../SamplePlugin/RecordingModels.cs" />
+    <Compile Include="../SamplePlugin/ActionInferenceEngine.cs" />
+    <Compile Include="../SamplePlugin/CombatTrendTracker.cs" />
+    <Compile Include="../SamplePlugin/RecommendationStabilizer.cs" />
+    <Compile Include="../SamplePlugin/PvpModeDetector.cs" />
+    <Compile Include="../SamplePlugin/PvpActionIds.cs" />
+  </ItemGroup>
+</Project>

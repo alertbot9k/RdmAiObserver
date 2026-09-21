@@ -1,10 +1,24 @@
-name: Sample PR Builder for SamplePlugin
+name: Build RdmAiObserver
 
 on:
+  push:
+    branches: [ master ]
   pull_request:
     branches: [ master ]
+  workflow_dispatch:
 
 jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 10.0.x
+    - name: Build decision and replay core
+      run: dotnet build RdmAiObserver.Core.slnx --configuration Release
+    - name: Run offline scenarios
+      run: dotnet test RdmAiObserver.Core.slnx --configuration Release --no-build
 
   build:
     runs-on: windows-2022
@@ -27,7 +41,7 @@ jobs:
         Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev"
 
     - name: Build with dotnet
-      run: dotnet build --configuration Release
+      run: dotnet build SamplePlugin.slnx --configuration Release
 
     - name: Store artifacts
       uses: actions/upload-artifact@v4
@@ -36,4 +50,3 @@ jobs:
         path: .\SamplePlugin\bin\x64\Release\SamplePlugin\*
         if-no-files-found: error
         retention-days: 1
-
