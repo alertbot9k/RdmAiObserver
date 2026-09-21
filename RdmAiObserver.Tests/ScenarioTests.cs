@@ -45,6 +45,18 @@ public sealed class ScenarioTests
     }
 
     [Fact]
+    public void Mode_detection_recognizes_confirmed_crystal_with_incomplete_party()
+    {
+        var state = new GameState
+        {
+            PvpUiActive = true,
+            Objective = new ObjectiveSnapshot { BaseId = ObjectiveEvaluator.TacticalCrystalBaseId }
+        };
+
+        Assert.Equal(ObservedPvpMode.CrystallineConflict, PvpModeDetector.Detect(state));
+    }
+
+    [Fact]
     public void Empty_replay_has_no_activity()
     {
         var report = ReplayAnalyzer.CreateReport([], DateTime.UnixEpoch);

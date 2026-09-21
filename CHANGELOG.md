@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Keep scanning for the Tactical Crystal while the PvP UI is active, even if
+  the live party list temporarily drops below five members.
+- Treat the confirmed crystal BaseId as direct Crystalline Conflict evidence.
 - Confirmed Tactical Crystal `BaseId 14470` from a 64-frame movement track and
   promoted it to a first-class objective snapshot.
 - Record combatant world positions and derive player distance, ally/enemy counts,

@@ -27,6 +27,11 @@ public static class PvpModeDetector
         if (ConfirmedCrystallineConflictTerritories.Contains(state.TerritoryId))
             return ObservedPvpMode.CrystallineConflict;
 
+        // A captured Tactical Crystal is direct mode evidence and remains valid
+        // when the live party list temporarily contains fewer than five members.
+        if (state.Objective?.BaseId == ObjectiveEvaluator.TacticalCrystalBaseId)
+            return ObservedPvpMode.CrystallineConflict;
+
         // The live CC party contains exactly five members. PvPUiActive can be
         // transient during loading, so recordings also retain territory proof.
         if (state.PvpUiActive && state.Party.Count == 5)

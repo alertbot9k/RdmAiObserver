@@ -104,7 +104,9 @@ public static class GameStateCapture
         // Capture a bounded set of non-player objects so objective identities can
         // be discovered from recordings before any BaseId is treated as the CC
         // crystal. This is observational and never retains native addresses.
-        if (PvpModeDetector.Detect(state) == ObservedPvpMode.CrystallineConflict)
+        // PvP party data can shrink before the PvP UI closes. Keep scanning
+        // while that UI is active so objective tracking does not disappear.
+        if (state.PvpUiActive || PvpModeDetector.Detect(state) == ObservedPvpMode.CrystallineConflict)
         {
             foreach (var gameObject in Plugin.ObjectTable)
             {
