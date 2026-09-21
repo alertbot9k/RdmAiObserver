@@ -35,7 +35,7 @@ move the character, select targets, or issue game commands.
   engaged-time targeting, and advice/action-window agreement offline.
 - Tolerates legacy or incomplete replay frames with a missing timestamp during
   combat-trend analysis.
-- Runs 57 deterministic scenario checks plus 99 automated tests covering decisions,
+- Runs 57 deterministic scenario checks plus 105 automated tests covering decisions,
   normalization, and replay infrastructure in a standalone project, without
   launching FFXIV.
 - Converts recommendations into typed shadow commands for actions, target
@@ -54,6 +54,8 @@ move the character, select targets, or issue game commands.
 - Tracks PvP Sprint readiness and active status, with separate recommendations
   for safe crystal travel, regrouping, isolated disengagement, and holding it
   during immediate combat.
+- Tracks the stateful CC lifecycle across outside, loading, countdown, active,
+  dead/respawning, results, and exited transitions, with evidence shown in the UI.
 
 ## Architecture
 

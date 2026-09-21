@@ -33,6 +33,7 @@ public class MainWindow : Window, IDisposable
     private readonly RecommendationStabilizer recommendationStabilizer = new();
     private readonly CombatTrendTracker liveTrendTracker = new();
     private readonly CombatTrendTracker recordingTrendTracker = new();
+    private readonly MatchLifecycleTracker matchLifecycleTracker = new();
 
     public MainWindow()
         : base($"FFXIV Observer v{BuildInfo.Version}##ObserverMain")
@@ -71,6 +72,7 @@ public class MainWindow : Window, IDisposable
     public override void Draw()
     {
         var liveState = GameStateCapture.Capture();
+        var lifecycle = matchLifecycleTracker.Update(liveState);
         var scenario = scenarioIndex >= 0 ? ScenarioLibrary.Get(scenarioIndex) : null;
         var state = scenario?.State ?? replayState ?? liveState;
 
@@ -232,6 +234,8 @@ public class MainWindow : Window, IDisposable
         ImGui.TextUnformatted($"Source: {source}");
         ImGui.TextUnformatted(replayMessage);
         ImGui.TextUnformatted($"Detected mode: {observedMode}");
+        ImGui.TextUnformatted($"CC lifecycle: {lifecycle.State}");
+        ImGui.TextWrapped($"Lifecycle evidence: {lifecycle.Reason}");
 
         if (state.Objective != null)
         {

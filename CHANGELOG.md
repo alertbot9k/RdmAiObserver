@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a stateful Crystalline Conflict lifecycle detector for outside, loading,
+  countdown, active, dead/respawning, results, and exited transitions.
 - Track PvP Sprint readiness and show a separate, read-only mobility recommendation
   for crystal travel, regrouping, isolated disengagement, and close combat.
 - Confirm territory `1116` as Crystalline Conflict from two actual-match
