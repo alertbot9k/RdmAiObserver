@@ -3,11 +3,16 @@ using System.Collections.Generic;
 
 namespace SamplePlugin;
 
+public static class RecordingSchema
+{
+    public const int CurrentVersion = 5;
+}
+
 public sealed class RecordedGameState
 {
     // Version 5 adds stable object identities and normalized lifecycle facts
     // while remaining backward compatible with older snapshots.
-    public int FormatVersion { get; set; } = 5;
+    public int FormatVersion { get; set; } = RecordingSchema.CurrentVersion;
     public DateTime CapturedAtUtc { get; set; }
     public GameState State { get; set; } = new();
     public DecisionRecommendation? Recommendation { get; set; }

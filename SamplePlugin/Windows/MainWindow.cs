@@ -379,7 +379,7 @@ public class MainWindow : Window, IDisposable
 
             recordedStates.Add(new RecordedGameState
             {
-                FormatVersion = 5,
+                FormatVersion = RecordingSchema.CurrentVersion,
                 CapturedAtUtc = capturedAt,
                 State = state,
                 Recommendation = DecisionEngine.Evaluate(state, trend),
