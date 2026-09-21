@@ -75,7 +75,7 @@ public static class DecisionEngine
                 : Recommend(DecisionPriority.Defend, "Cancel Elixir and move", $"{nearbyEnemiesInSpellRange} live opponent(s) entered 25 yalms during the interruptible recovery cast.");
         }
 
-        if (elixirReady && nearbyEnemiesInSpellRange == 0 &&
+        if (elixirReady && hp > 30f && nearbyEnemiesInSpellRange == 0 &&
             (hp <= 70f || player.Mp <= 4000))
         {
             return Recommend(

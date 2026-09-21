@@ -104,6 +104,23 @@ public sealed class ElixirSafetyTests
         Assert.Equal(0, ReplayAnalyzer.Analyze([restored]).ElixirOpportunitySnapshotCount);
     }
 
+    [Fact]
+    public void Replay_orders_out_of_order_snapshots_before_analysis()
+    {
+        var early = RecoveryState();
+        early.Player!.Hp = 58500;
+        var late = RecoveryState();
+        late.Player!.Hp = 12000;
+        var report = ReplayAnalyzer.CreateReport(
+            [
+                new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch.AddSeconds(2), State = late },
+                new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch.AddSeconds(1), State = early }
+            ], DateTime.UnixEpoch);
+
+        Assert.Equal(DateTime.UnixEpoch.AddSeconds(1), report.Timeline[0].CapturedAtUtc);
+        Assert.Equal(DateTime.UnixEpoch.AddSeconds(2), report.Timeline[^1].CapturedAtUtc);
+    }
+
     private static GameState RecoveryState()
     {
         var state = new GameState

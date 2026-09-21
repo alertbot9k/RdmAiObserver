@@ -11,6 +11,7 @@ public static class ReplayAnalyzer
 {
     public static ReplayReport CreateReport(IReadOnlyList<RecordedGameState> snapshots, DateTime generatedAtUtc)
     {
+        snapshots = OrderSnapshots(snapshots);
         var events = new List<ReplayTimelineEvent>();
         var trendTracker = new CombatTrendTracker();
         string? previousRecommendation = null;
@@ -65,6 +66,7 @@ public static class ReplayAnalyzer
 
     public static ReplayAnalysis Analyze(IReadOnlyList<RecordedGameState> snapshots)
     {
+        snapshots = OrderSnapshots(snapshots);
         var counts = new Dictionary<string, int>(StringComparer.Ordinal);
         var actionCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var observedStates = new List<GameState>(snapshots.Count);
@@ -231,6 +233,19 @@ public static class ReplayAnalyzer
             activeSnapshots == 0 ? 0f : lowestHpPercent,
             FindMostCommon(counts),
             FindMostCommon(actionCounts));
+    }
+
+    private static IReadOnlyList<RecordedGameState> OrderSnapshots(IReadOnlyList<RecordedGameState> snapshots)
+    {
+        if (snapshots.Count < 2)
+            return snapshots;
+
+        return snapshots
+            .Select((snapshot, index) => (snapshot, index))
+            .OrderBy(item => item.snapshot.CapturedAtUtc)
+            .ThenBy(item => item.index)
+            .Select(item => item.snapshot)
+            .ToArray();
     }
 
     private static bool HasStatus(IEnumerable<StatusSnapshot>? statuses, string name)
