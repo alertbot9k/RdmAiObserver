@@ -66,4 +66,16 @@ public sealed class PolicySimulationTests
         Assert.True(result.TimingFailures >= 1);
         Assert.True(result.MaxFailureStreak >= 1);
     }
+
+    [Fact]
+    public void Simulation_emergency_stops_after_repeated_timing_failures()
+    {
+        var state = new GameState { TerritoryId = 1293, NearbyScanRadius = 60f, NearbyScanComplete = true,
+            Player = new PlayerSnapshot { Hp = 50000, MaxHp = 58500 }, Target = new TargetSnapshot { Name = "Enemy", Hp = 50000, MaxHp = 58500, Distance = 10f } };
+        var recordings = new[] { 0, 1, 2 }.Select(i => new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch.AddSeconds(i), State = state }).ToArray();
+        var result = PolicySimulator.Run(recordings, new SafetyPolicy(new HashSet<string> { "Target Enemy" }), DateTime.UnixEpoch,
+            new PolicySimulator.Options(TimeSpan.FromSeconds(1), 2));
+
+        Assert.True(result.EmergencyStops >= 1);
+    }
 }
