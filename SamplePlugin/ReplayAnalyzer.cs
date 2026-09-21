@@ -124,7 +124,7 @@ public static class ReplayAnalyzer
                 var isProtected = HasStatus(player.Statuses, "Invincibility");
                 var nearbyEnemies = CombatProximity.CountEnemies(snapshot.State, 15f);
                 var nearbyEnemiesInSpellRange = CombatProximity.CountEnemies(snapshot.State, 25f);
-                var nearbyAllies = CountNearbyAllies(snapshot.State, 15f);
+                var nearbyAllies = CombatProximity.CountAllies(snapshot.State, 15f);
                 if (isProtected)
                     protectedSnapshots++;
                 if (!isProtected && nearbyEnemies >= 2 && nearbyAllies == 0)
