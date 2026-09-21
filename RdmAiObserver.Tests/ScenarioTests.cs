@@ -37,6 +37,14 @@ public sealed class ScenarioTests
     }
 
     [Fact]
+    public void Mode_detection_recognizes_confirmed_live_match_territory_without_transient_ui_evidence()
+    {
+        var state = new GameState { TerritoryId = 1034 };
+
+        Assert.Equal(ObservedPvpMode.CrystallineConflict, PvpModeDetector.Detect(state));
+    }
+
+    [Fact]
     public void Empty_replay_has_no_activity()
     {
         var report = ReplayAnalyzer.CreateReport([], DateTime.UnixEpoch);

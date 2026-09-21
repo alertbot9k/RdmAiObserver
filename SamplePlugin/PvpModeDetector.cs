@@ -14,13 +14,17 @@ public enum ObservedPvpMode
 /// </summary>
 public static class PvpModeDetector
 {
-    // Confirmed from a user-recorded Crystalline Conflict match. Add territory
-    // IDs only after they have been verified from known-duty recordings.
-    private const uint ConfirmedCrystallineConflictTerritory = 1293;
+    // Confirmed from user-recorded Crystalline Conflict matches. Add territory
+    // IDs only after they have been verified across known-duty recordings.
+    private static readonly HashSet<uint> ConfirmedCrystallineConflictTerritories =
+    [
+        1034,
+        1293
+    ];
 
     public static ObservedPvpMode Detect(GameState state)
     {
-        if (state.TerritoryId == ConfirmedCrystallineConflictTerritory)
+        if (ConfirmedCrystallineConflictTerritories.Contains(state.TerritoryId))
             return ObservedPvpMode.CrystallineConflict;
 
         // The live CC party contains exactly five members. PvPUiActive can be

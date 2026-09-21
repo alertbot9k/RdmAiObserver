@@ -6,6 +6,8 @@
   shadow-policy logic against saved matches without launching FFXIV.
 - Correctly map the explanatory `Use Jolt III and assess` recommendation to the
   concrete `Jolt III` action in typed shadow-policy plans.
+- Recognize territory `1034` as confirmed Crystalline Conflict evidence from a
+  full five-minute live recording, without depending on transient UI state.
 - Added typed shadow-policy steps for actions, target selection, movement, and
   cast cancellation, with conservative abstention for non-concrete advice.
 - Added an in-plugin `Simulate Policy (No Input)` replay workflow and persisted
