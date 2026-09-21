@@ -12,6 +12,7 @@ public sealed record PolicySimulationResult(
     int RecoveryTransitions,
     int EmergencyStops,
     int SafetyFallbacks,
+    int GameRejectedCommands,
     IReadOnlyList<ControlReceipt> Receipts)
 {
     public float AcceptancePercent => SimulatedCommands + RejectedCommands == 0
@@ -36,6 +37,7 @@ public static class PolicySimulator
         var recoveries = 0;
         var emergencyStops = 0;
         var safetyFallbacks = 0;
+        var gameRejected = 0;
         var wasActionable = false;
         var now = startTimeUtc ?? DateTime.UtcNow;
 
@@ -76,6 +78,14 @@ public static class PolicySimulator
                     continue;
                 }
 
+                if (!GameWouldAccept(command, facts, out var gameReason))
+                {
+                    gameRejected++;
+                    receipts.Add(new ControlReceipt(command, ControlResult.Rejected, gameReason, now));
+                    recoveries++;
+                    continue;
+                }
+
                 var receipt = executor.Execute(command, facts);
                 receipts.Add(receipt);
                 if (receipt.Result == ControlResult.Simulated) simulated++;
@@ -84,7 +94,7 @@ public static class PolicySimulator
             now = recording.CapturedAtUtc;
         }
 
-        return new(recordings.Count, planned, observeOnly, simulated, rejected, recoveries, emergencyStops, safetyFallbacks, receipts);
+        return new(recordings.Count, planned, observeOnly, simulated, rejected, recoveries, emergencyStops, safetyFallbacks, gameRejected, receipts);
     }
 
     private static ControlCommand ToCommand(PolicyStep step)
@@ -93,5 +103,17 @@ public static class PolicySimulator
             ? step.Action[4..]
             : step.Action;
         return new ControlCommand(ControlCommandKind.Action, step.Purpose, action);
+    }
+
+    private static bool GameWouldAccept(ControlCommand command, ObservationFacts facts, out string reason)
+    {
+        if (facts.MatchPhase is ObservedMatchPhase.Loading or ObservedMatchPhase.Respawning)
+        { reason = "Game is not in an active phase."; return false; }
+        if (command.Kind == ControlCommandKind.Action && facts.TargetMitigation == MitigationState.Invulnerable)
+        { reason = "Target is invulnerable; simulated game rejected the action."; return false; }
+        if (command.Kind == ControlCommandKind.Action && facts.LineOfSight == LineOfSightState.Blocked)
+        { reason = "Line of sight is blocked; simulated game rejected the action."; return false; }
+        reason = "Simulated game accepted the command.";
+        return true;
     }
 }

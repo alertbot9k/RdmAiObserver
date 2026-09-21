@@ -31,4 +31,21 @@ public sealed class PolicySimulationTests
         Assert.True(result.RecoveryTransitions >= 1);
         Assert.True(result.SafetyFallbacks >= 1);
     }
+
+    [Fact]
+    public void Simulation_rejects_actions_against_invulnerable_targets()
+    {
+        var state = new GameState
+        {
+            TerritoryId = 1293, NearbyScanRadius = 60f, NearbyScanComplete = true,
+            Player = new PlayerSnapshot { Hp = 50000, MaxHp = 58500 },
+            Target = new TargetSnapshot { Name = "Enemy", Hp = 50000, MaxHp = 58500, Distance = 10f,
+                Statuses = new List<StatusSnapshot> { new() { Name = "Invincibility" } } }
+        };
+        var result = PolicySimulator.Run(
+            [new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch, State = state }],
+            new SafetyPolicy(new HashSet<string> { "Use Prefulgence", "Target Enemy" }), DateTime.UnixEpoch);
+
+        Assert.True(result.GameRejectedCommands >= 1);
+    }
 }
