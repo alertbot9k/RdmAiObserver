@@ -87,7 +87,8 @@ public static class ReplayAnalyzer
             Diagnostics = RecordingDiagnostics.Analyze(snapshots),
             ConsistencyIssues = RecommendationConsistencyAnalyzer.Analyze(snapshots),
             MatchEvents = MatchEventTracker.Analyze(snapshots),
-            ActionUsage = AnalyzeActionUsage(snapshots)
+            ActionUsage = AnalyzeActionUsage(snapshots),
+            LifecycleTransitions = AnalyzeLifecycle(snapshots)
         };
     }
 
@@ -430,6 +431,21 @@ public static class ReplayAnalyzer
         return counts.OrderByDescending(pair => pair.Value.Uses)
             .Select(pair => new ActionUsageSummary(pair.Key, pair.Value.Uses, pair.Value.Matches)).ToList();
     }
+
+    private static List<LifecycleTransition> AnalyzeLifecycle(IReadOnlyList<RecordedGameState> snapshots)
+    {
+        var tracker = new MatchLifecycleTracker();
+        var result = new List<LifecycleTransition>();
+        CcLifecycleState? previous = null;
+        foreach (var frame in snapshots.OrderBy(frame => frame.CapturedAtUtc))
+        {
+            var observation = tracker.Update(frame.State);
+            if (previous != observation.State)
+                result.Add(new(frame.CapturedAtUtc, observation.State, observation.Reason));
+            previous = observation.State;
+        }
+        return result;
+    }
 }
 
 public sealed record ReplayReport(
@@ -442,7 +458,10 @@ public sealed record ReplayReport(
     public List<RecommendationConsistencyIssue> ConsistencyIssues { get; init; } = [];
     public MatchEventSummary MatchEvents { get; init; } = new(0, 0, 0, 0, 0, 0, 0);
     public List<ActionUsageSummary> ActionUsage { get; init; } = [];
+    public List<LifecycleTransition> LifecycleTransitions { get; init; } = [];
 }
+
+public sealed record LifecycleTransition(DateTime CapturedAtUtc, CcLifecycleState State, string Reason);
 
 public sealed record ActionUsageSummary(string Action, int Uses, int RecommendationMatches)
 {

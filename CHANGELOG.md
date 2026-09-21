@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Persist lifecycle transitions in replay reports and restrict frozen-capture
+  diagnostics to identical snapshots with active combat evidence.
 - Confirmed territory `1032` as Crystalline Conflict from a disconnected partial
   match and added diagnostics for frozen snapshot sequences after a capture stall.
 - Added crystal approach, contest, escort, retreat, and regroup strategy using

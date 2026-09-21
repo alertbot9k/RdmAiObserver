@@ -69,6 +69,7 @@ Console.WriteLine($"Sprint active / likely cancellations: {replay.Analysis.Sprin
 Console.WriteLine($"Targets changed: {replay.MatchEvents.TargetChanges}");
 Console.WriteLine($"Engagement starts / ends: {replay.MatchEvents.EngagementStarts} / {replay.MatchEvents.EngagementEnds}");
 Console.WriteLine($"Consistency issues: {replay.ConsistencyIssues.Count}");
+Console.WriteLine("Lifecycle: " + string.Join(" -> ", replay.LifecycleTransitions.Select(item => item.State)));
 foreach (var issue in replay.ConsistencyIssues)
     Console.WriteLine($"Consistency {issue.Kind} at {issue.CapturedAtUtc:O}: {issue.Previous} -> {issue.Current} ({issue.Detail})");
 foreach (var diagnostic in replay.Diagnostics)

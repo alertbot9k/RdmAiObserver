@@ -49,9 +49,23 @@ public sealed class ReplayDiagnosticsTests
     public void Diagnostics_detect_frozen_capture_sequence()
     {
         var state = State();
+        state.Target = Target(10);
         state.Player!.Statuses.Add(new StatusSnapshot { Id = 1, Name = "Guard", RemainingSeconds = 4 });
         var frames = Enumerable.Range(0, 6).Select(index => Frame(index * 2, state)).ToArray();
         Assert.Contains(RecordingDiagnostics.Analyze(frames), issue => issue.Code == "frozen-capture");
+    }
+
+    [Fact]
+    public void Replay_report_records_lifecycle_transitions()
+    {
+        var outside = State(); outside.TerritoryId = 1310;
+        var countdown = State(); countdown.Player!.Statuses.Add(new StatusSnapshot { Name = "Invincibility" });
+        var active = State();
+        var results = State(); results.PvpUiActive = true;
+        var exited = State(); exited.TerritoryId = 1310;
+        var report = ReplayAnalyzer.CreateReport(new[] { Frame(0, outside), Frame(2, countdown), Frame(4, active), Frame(6, results), Frame(8, exited) }, DateTime.UnixEpoch);
+        Assert.Equal(new[] { CcLifecycleState.OutsideCc, CcLifecycleState.Countdown, CcLifecycleState.Active, CcLifecycleState.Results, CcLifecycleState.Exited },
+            report.LifecycleTransitions.Select(item => item.State));
     }
 
     private static TargetSnapshot Target(float distance) => new() { ObjectId = 10, Name = "Enemy", Hp = 50000, MaxHp = 58500, Distance = distance };

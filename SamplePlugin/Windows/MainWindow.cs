@@ -288,6 +288,7 @@ public class MainWindow : Window, IDisposable
             if (replayReport != null)
             {
                 ImGui.TextUnformatted($"Consistency issues: {replayReport.ConsistencyIssues.Count}");
+                ImGui.TextWrapped($"Lifecycle: {string.Join(" -> ", replayReport.LifecycleTransitions.Select(item => item.State))}");
                 ImGui.TextUnformatted($"Diagnostics: {replayReport.Diagnostics.Count(diagnostic => diagnostic.Severity != DiagnosticSeverity.Info)} warning/error item(s)");
                 foreach (var diagnostic in replayReport.Diagnostics.Where(diagnostic => diagnostic.Severity != DiagnosticSeverity.Info).Take(5))
                     ImGui.BulletText($"{diagnostic.Code}: {diagnostic.AffectedSnapshots} - {diagnostic.Message}");

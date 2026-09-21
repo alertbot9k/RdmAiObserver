@@ -35,7 +35,7 @@ move the character, select targets, or issue game commands.
   engaged-time targeting, and advice/action-window agreement offline.
 - Tolerates legacy or incomplete replay frames with a missing timestamp during
   combat-trend analysis.
-- Runs 57 deterministic infrastructure checks plus 122 automated cases, including
+- Runs 57 deterministic infrastructure checks plus 123 automated cases, including
   a synthetic CC strategy corpus, covering decisions,
   normalization, and replay infrastructure in a standalone project, without
   launching FFXIV.

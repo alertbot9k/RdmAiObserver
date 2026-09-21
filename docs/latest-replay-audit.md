@@ -1,45 +1,43 @@
 # Latest available recording audit
 
-Audited with the `0.4.0` offline logic on 2026-09-21. Only one raw recording was
-present under the XIVLauncher plugin configuration when the repository and plugin
-configuration trees were inventoried. Earlier attachments had been overwritten and
-could not be replayed again.
+Audited with the `0.4.2` offline logic on 2026-09-21.
 
 ## Recording coverage
 
-- 87 snapshots over 173.2 seconds, identified as Crystalline Conflict.
-- 1 death and no completed respawn before recording ended.
-- 6 direct target changes and 3 engagement starts / 3 engagement ends.
-- Crystal evidence exists in 4 snapshots; 83 snapshots predate continuous territory
-  capture and are diagnosed as missing crystal evidence.
-- Sprint status produced an estimated 77.5 seconds active and 5 likely combat
-  cancellations. Sprint readiness was not captured in this older recording, so no
-  recommended or missed Sprint opportunities can be scored reliably.
+- 225 snapshots over 7.51 minutes, starting outside the duty and ending after
+  returning outside it.
+- 213/213 arena snapshots contain Tactical Crystal evidence; its observed movement
+  span is 76.9 yalms.
+- Sprint readiness is present in all 225 snapshots.
+- Lifecycle: `OutsideCc -> Countdown -> Active -> DeadRespawning -> Active -> Results -> Exited -> OutsideCc`.
+- 1 death, 1 respawn, 25 direct target changes, and 7 engagement starts / 7 ends.
+- Recording diagnostics report no completeness problems.
 
 ## Recommendation stability
 
-The initial audit found apparent reversals around urgent Purify/Recuperate decisions,
-target loss, Guard transitions, and the 25-yalm range boundary. Those are supported
-state changes rather than contradictions and are now excluded from instability
-classification. The remaining Resolution / reposition / Resolution sequence was
-caused by target distance changing from 19.7 to 25.9 to 16.6 yalms, so it too is a
-supported range-boundary transition. After contextual filtering, the recording has
-no unresolved contradictory or unstable recommendations.
+No unresolved contradictory transitions or rapid reversals remain after accounting
+for target identity, range thresholds, mitigation changes, deaths, and urgent
+survival responses.
+
+## Sprint
+
+- 20 distinct recommended-use opportunities; 12 were not followed by observed Sprint.
+- Estimated Sprint-active time: 126.8 seconds.
+- 12 likely combat cancellations.
 
 ## Action agreement
 
-The analyzer inferred 12 reliable action windows and found 1 direct text match
-(8.3%). By action: Grand Impact 1/4 matched; Resolution 0/2; Recuperate 0/2; Guard,
-Embolden, Corps-a-corps, and Enchanted Riposte 0/1 each. This is not an accuracy score:
-the observer recommends one highest-priority action per two-second snapshot, while
-multiple off-global-cooldown actions can occur inside a sampling interval. The low
-agreement is retained as a calibration warning and should not be optimized blindly.
+The analyzer inferred 39 reliable action windows and found 7 direct recommendation
+matches (17.9%). Stronger individual agreement appeared for Standard-issue Elixir
+(1/1), Enchanted Zwerchhau (1/1), Prefulgence (2/3), and Embolden (2/4).
+
+This is a conservative text/action agreement measure, not an accuracy score: the
+observer emits one highest-priority recommendation while multiple actions can occur
+within each two-second sampling interval.
 
 ## Shadow-policy results
 
-- 50 planned snapshots and 10 observe-only snapshots.
-- 31 verified transitions, 4 failed transitions, and 15 transitions not observable
-  at the recording interval.
-- Three failures were unobserved requested-target changes; one was a movement request
-  without player displacement in the next snapshot.
+- 143 planned and 26 observe-only snapshots.
+- 145 simulated commands, 55 verified transitions, 17 failed transitions, and 73
+  transitions whose effect was not observable at the snapshot interval.
 - No emergency stop was triggered.

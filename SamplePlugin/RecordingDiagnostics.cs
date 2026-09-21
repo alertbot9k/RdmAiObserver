@@ -50,7 +50,8 @@ public static class RecordingDiagnostics
         var runStart = 0;
         for (var index = 1; index <= ordered.Count; index++)
         {
-            var same = index < ordered.Count && SameDynamicState(ordered[index - 1].State, ordered[index].State);
+            var same = index < ordered.Count && IsActiveCombat(ordered[index - 1].State) && IsActiveCombat(ordered[index].State) &&
+                SameDynamicState(ordered[index - 1].State, ordered[index].State);
             if (same) continue;
             if (index - runStart > 1 &&
                 ordered[index - 1].CapturedAtUtc - ordered[runStart].CapturedAtUtc >= TimeSpan.FromSeconds(8))
@@ -59,6 +60,11 @@ public static class RecordingDiagnostics
         }
         return total;
     }
+
+    private static bool IsActiveCombat(GameState state) =>
+        PvpModeDetector.Detect(state) == ObservedPvpMode.CrystallineConflict &&
+        state.Player is { Hp: > 0 } &&
+        (state.Target?.Hp is > 0 || CombatProximity.CountEnemies(state, 25f) > 0);
 
     private static bool SameDynamicState(GameState left, GameState right)
     {
