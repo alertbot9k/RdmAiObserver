@@ -34,7 +34,7 @@ public class MainWindow : Window, IDisposable
     private readonly CombatTrendTracker recordingTrendTracker = new();
 
     public MainWindow()
-        : base("FFXIV Observer##ObserverMain")
+        : base($"FFXIV Observer v{BuildInfo.Version}##ObserverMain")
     {
         SizeConstraints = new WindowSizeConstraints
         {

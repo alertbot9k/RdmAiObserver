@@ -57,7 +57,7 @@ public sealed class Plugin : IDalamudPlugin
         // Add a simple message to the log with level set to information
         // Use /xllog to open the log window in-game
         // Example Output: 00:57:54.959 | INF | [SamplePlugin] ===A cool log message from Sample Plugin===
-        Log.Information("RdmAiObserver loaded in read-only mode.");
+        Log.Information($"RdmAiObserver v{BuildInfo.Version} loaded in read-only mode ({BuildInfo.Milestone}).");
     }
 
     public void Dispose()
