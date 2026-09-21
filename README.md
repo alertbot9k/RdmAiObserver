@@ -24,7 +24,17 @@ move the character, select targets, or issue game commands.
 - Automatically writes a compact `replay-analysis.json` timeline and summary.
 - Analyzes deaths, HP pressure, isolation, spawn protection, target range,
   engaged-time targeting, and advice/action-window agreement offline.
-- Runs 57 deterministic offline checks covering decisions and infrastructure.
+- Runs 57 deterministic offline checks covering decisions and infrastructure in
+  a standalone project, without launching FFXIV.
+
+## Architecture
+
+`SamplePlugin` owns Dalamud services, game-state capture, the recorder, and the
+observer window. `RdmAiObserver.Core` compiles the game-state models, combat
+decisions, target selection, scenarios, action inference, and replay analysis
+without Dalamud references. The plugin references the same core assembly that
+the offline checks use. `RdmAiObserver.Tests` runs the existing scenario and
+infrastructure checks as a command-line regression suite.
 
 ## Offline workflow
 
@@ -41,11 +51,28 @@ Most rule changes can therefore be evaluated without playing another match.
 The current data-derived thresholds are documented in
 [`docs/cc-recording-baseline.md`](docs/cc-recording-baseline.md).
 
-## Build
+## Build and test
 
-Build `SamplePlugin.slnx` in Visual Studio with the .NET SDK and Dalamud dev
-files installed. The output is under `SamplePlugin/bin/x64/Debug` by default.
-Pushing to `master` also runs the repository's GitHub Actions build.
+With the .NET 10 SDK on Linux, macOS, or Windows, run the same portable build
+and offline checks used by GitHub Actions:
+
+```sh
+dotnet build RdmAiObserver.Core.slnx --configuration Release
+dotnet run --project RdmAiObserver.Tests --configuration Release --no-build
+```
+
+The test executable prints the pass count and returns a nonzero exit status on
+failure. To build the plugin on Windows, install the Dalamud developer files
+or set `DALAMUD_HOME` to their directory, then run:
+
+```sh
+dotnet build SamplePlugin.slnx --configuration Release
+```
+
+The output is under `SamplePlugin/bin/x64/Release`. GitHub Actions runs the
+portable checks on Linux and the plugin build on Windows. The downloaded
+Dalamud distribution and the plugin still need Windows and in-game validation
+after game or Dalamud API updates.
 
 ## Safety boundary
 

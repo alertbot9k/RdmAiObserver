@@ -69,7 +69,7 @@ public class MainWindow : Window, IDisposable
 
     public override void Draw()
     {
-        var liveState = GameState.Capture();
+        var liveState = GameStateCapture.Capture();
         var scenario = scenarioIndex >= 0 ? ScenarioLibrary.Get(scenarioIndex) : null;
         var state = scenario?.State ?? replayState ?? liveState;
 
@@ -410,7 +410,7 @@ public class MainWindow : Window, IDisposable
         if (!isRecording || DateTime.UtcNow < nextAutomaticCaptureUtc)
             return;
 
-        SaveAutomaticCapture(GameState.Capture());
+        SaveAutomaticCapture(GameStateCapture.Capture());
         nextAutomaticCaptureUtc = DateTime.UtcNow.AddSeconds(2);
     }
 

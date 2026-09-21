@@ -119,7 +119,8 @@ public static class DecisionEngine
         if (hp <= 55f && player.Mp >= 4000 && !prefulgenceReady)
             return Recommend(DecisionPriority.Recover, "Use Recuperate", $"HP is {hp:F0}% and enough MP remains for two Recuperates.");
 
-        if (state.Target == null)
+        var target = state.Target;
+        if (target == null)
         {
             if (nearbyEnemies >= 2 && nearbyAllies == 0)
                 return Recommend(DecisionPriority.Reposition, "Disengage toward your team", $"{nearbyEnemies} opponents are nearby and no living ally is inside 15 yalms.");
@@ -134,71 +135,71 @@ public static class DecisionEngine
         if (targetHp is null or <= 0f)
         {
             return bestTarget != null &&
-                   !string.Equals(state.Target.Name, bestTarget.Name, StringComparison.Ordinal)
-                ? Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", $"{state.Target.Name} is not a live combat target; {DescribeTarget(bestTarget)}")
-                : Recommend(DecisionPriority.Target, "Find a live target", $"{state.Target.Name} cannot currently be pressured.");
+                   !string.Equals(target.Name, bestTarget.Name, StringComparison.Ordinal)
+                ? Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", $"{target.Name} is not a live combat target; {DescribeTarget(bestTarget)}")
+                : Recommend(DecisionPriority.Target, "Find a live target", $"{target.Name} cannot currently be pressured.");
         }
 
         if (targetInvincible)
         {
             return bestTarget != null &&
-                   !string.Equals(state.Target.Name, bestTarget.Name, StringComparison.Ordinal)
-                ? Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", $"{state.Target.Name} has Invincibility; {DescribeTarget(bestTarget)}")
-                : Recommend(DecisionPriority.Target, "Find another target", $"{state.Target.Name} has Invincibility and cannot be pressured effectively.");
+                   !string.Equals(target.Name, bestTarget.Name, StringComparison.Ordinal)
+                ? Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", $"{target.Name} has Invincibility; {DescribeTarget(bestTarget)}")
+                : Recommend(DecisionPriority.Target, "Find another target", $"{target.Name} has Invincibility and cannot be pressured effectively.");
         }
 
         if (targetGuarding)
         {
             if (nearbyEnemies >= 2 && nearbyAllies == 0 &&
                 !enchantedRiposte && !enchantedZwerchhau)
-                return Recommend(DecisionPriority.Reposition, "Disengage toward your team", $"{state.Target.Name} is Guarding while {nearbyEnemies} opponents are nearby and no ally is in support range.");
+                return Recommend(DecisionPriority.Reposition, "Disengage toward your team", $"{target.Name} is Guarding while {nearbyEnemies} opponents are nearby and no ally is in support range.");
 
-            if (state.Target.Distance > 5f &&
-                (enchantedRiposte || enchantedZwerchhau) && state.Target.Distance <= 25f)
+            if (target.Distance > 5f &&
+                (enchantedRiposte || enchantedZwerchhau) && target.Distance <= 25f)
                 return Recommend(DecisionPriority.Reposition, "Close distance to continue the melee combo", "The active melee chain ignores Guard, but the target is outside its 5-yalm range.");
 
-            if (state.Target.Distance > 5f && corpsReady && riposteReady &&
+            if (target.Distance > 5f && corpsReady && riposteReady &&
                 hp >= 70f && nearbyEnemies <= 2)
                 return Recommend(DecisionPriority.Burst, "Corps-a-corps, then Enchanted Riposte", "The melee chain ignores Guard, and Monomachy reduces this target's return damage.");
 
-            if (state.Target.Distance <= 5f && riposteReady)
+            if (target.Distance <= 5f && riposteReady)
                 return Recommend(DecisionPriority.Burst, "Use Enchanted Riposte", "The melee chain ignores Guard and is currently available.");
 
             if (bestTarget != null && !bestTarget.IsGuarding &&
-                !string.Equals(state.Target.Name, bestTarget.Name, StringComparison.Ordinal))
-                return Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", $"{state.Target.Name} is Guarding; {DescribeTarget(bestTarget)}");
+                !string.Equals(target.Name, bestTarget.Name, StringComparison.Ordinal))
+                return Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", $"{target.Name} is Guarding; {DescribeTarget(bestTarget)}");
 
-            return Recommend(DecisionPriority.Reposition, "Do not spend ranged burst", $"{state.Target.Name} is Guarding and the Guard-piercing melee chain is unavailable; preserve procs or switch targets.");
+            return Recommend(DecisionPriority.Reposition, "Do not spend ranged burst", $"{target.Name} is Guarding and the Guard-piercing melee chain is unavailable; preserve procs or switch targets.");
         }
 
-        if (state.Target.Distance > 25f)
-            return Recommend(DecisionPriority.Reposition, "Move into spell range", $"{state.Target.Name} is {state.Target.Distance:F0} yalms away; preserve ready procs until the target is within 25 yalms.");
+        if (target.Distance > 25f)
+            return Recommend(DecisionPriority.Reposition, "Move into spell range", $"{target.Name} is {target.Distance:F0} yalms away; preserve ready procs until the target is within 25 yalms.");
 
-        if (prefulgenceReady && state.Target != null)
+        if (prefulgenceReady)
             return Recommend(DecisionPriority.Burst, "Use Prefulgence", "Prefulgence Ready is active; use the instant damage and party healing before it expires.");
 
-        if (thornedFlourish && state.Target != null)
+        if (thornedFlourish)
             return Recommend(DecisionPriority.Control, "Use Vice of Thorns", "Thorned Flourish is active; Vice of Thorns adds damage and a stun.");
 
-        if (enchantedRedoublement && state.Target.Distance <= 25f)
+        if (enchantedRedoublement && target.Distance <= 25f)
         {
-            if (displacementReady && state.Target.Distance <= 5f)
+            if (displacementReady && target.Distance <= 5f)
                 return Recommend(DecisionPriority.Burst, "Use Displacement, then Scorch", "Displacement strengthens the next spell by 15%; spend that boost on Scorch.");
 
             return Recommend(DecisionPriority.Burst, "Use Scorch", "The recorded combo state shows Enchanted Redoublement completed; continue into Scorch.");
         }
 
-        if (enchantedZwerchhau && state.Target.Distance <= 5f)
+        if (enchantedZwerchhau && target.Distance <= 5f)
             return Recommend(DecisionPriority.Burst, "Use Enchanted Redoublement", "Continue the active melee combo before its state expires.");
 
-        if (enchantedRiposte && state.Target.Distance <= 5f)
+        if (enchantedRiposte && target.Distance <= 5f)
             return Recommend(DecisionPriority.Burst, "Use Enchanted Zwerchhau", "Continue the active melee combo before its state expires.");
 
-        if ((enchantedRiposte || enchantedZwerchhau) && state.Target.Distance <= 25f)
-            return Recommend(DecisionPriority.Reposition, "Close distance to continue the melee combo", $"The combo is active, but {state.Target.Name} is {state.Target.Distance:F0} yalms away.");
+        if ((enchantedRiposte || enchantedZwerchhau) && target.Distance <= 25f)
+            return Recommend(DecisionPriority.Reposition, "Close distance to continue the melee combo", $"The combo is active, but {target.Name} is {target.Distance:F0} yalms away.");
 
         if (bestTarget != null &&
-            !string.Equals(state.Target.Name, bestTarget.Name, StringComparison.Ordinal) &&
+            !string.Equals(target.Name, bestTarget.Name, StringComparison.Ordinal) &&
             targetHp is > 55f && bestTarget.HpPercent + 15f < targetHp)
         {
             return Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", DescribeTarget(bestTarget));
@@ -212,10 +213,10 @@ public static class DecisionEngine
         if (emboldenReady && safeBurstWindow && !HasStatus(player.Statuses, "Embolden"))
             return Recommend(DecisionPriority.Burst, "Use Embolden", "A teammate is nearby and defensive resources are sufficient to begin the burst window.");
 
-        if (resolutionReady && state.Target.Distance <= 25f)
+        if (resolutionReady && target.Distance <= 25f)
             return Recommend(DecisionPriority.Control, "Use Resolution", "Resolution is ready; apply its line damage and Silence before committing to melee.");
 
-        if (dualcastReady && state.Target.Distance <= 25f)
+        if (dualcastReady && target.Distance <= 25f)
             return Recommend(DecisionPriority.Pressure, "Use Grand Impact", "Dualcast is active; spend Grand Impact before beginning the melee commitment.");
 
         if (targetHp <= 30f && hp >= 55f && nearbyEnemies <= 2)
@@ -223,13 +224,13 @@ public static class DecisionEngine
             var monomachyText = targetHasMonomachy
                 ? " Monomachy is already active."
                 : corpsReady ? " Corps-a-corps is ready to apply Monomachy." : " Corps-a-corps is unavailable; finish from range.";
-            return Recommend(DecisionPriority.FinishTarget, "Commit to the finish", $"{state.Target.Name} is at {targetHp:F0}% HP and the local risk is acceptable.{monomachyText}");
+            return Recommend(DecisionPriority.FinishTarget, "Commit to the finish", $"{target.Name} is at {targetHp:F0}% HP and the local risk is acceptable.{monomachyText}");
         }
 
-        if (targetHasMonomachy && riposteReady && state.Target.Distance <= 5f && hp >= 55f && nearbyEnemies <= 2)
+        if (targetHasMonomachy && riposteReady && target.Distance <= 5f && hp >= 55f && nearbyEnemies <= 2)
             return Recommend(DecisionPriority.Burst, "Start Enchanted Riposte", "Monomachy is active, the melee chain is ready, and local risk is acceptable.");
 
-        if (!targetHasMonomachy && corpsReady && riposteReady && state.Target.Distance <= 25f &&
+        if (!targetHasMonomachy && corpsReady && riposteReady && target.Distance <= 25f &&
             hp >= 70f && player.Mp >= 4000 && nearbyEnemies <= 2 && nearbyAllies >= 1)
         {
             return Recommend(
@@ -238,7 +239,7 @@ public static class DecisionEngine
                 $"Burst resources are ready with {hp:F0}% HP, {player.Mp:N0} MP, and {nearbyAllies} nearby ally/allies.");
         }
 
-        if (state.Target.Distance <= 5f && hp >= 60f && nearbyEnemies <= 2)
+        if (target.Distance <= 5f && hp >= 60f && nearbyEnemies <= 2)
             return Recommend(DecisionPriority.Burst, "Continue the melee combo", $"The target is in melee range with {nearbyEnemies} nearby opponent(s) and your HP is stable.");
 
         if (nearbyEnemies >= 3)

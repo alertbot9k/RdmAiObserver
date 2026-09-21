@@ -12,4 +12,9 @@
     <Tags>pvp;red mage;observer;analysis</Tags>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\RdmAiObserver.Core\RdmAiObserver.Core.csproj" />
+    <Compile Remove="ActionInferenceEngine.cs;CombatTrendTracker.cs;DecisionEngine.cs;GameState.cs;PvpActionIds.cs;PvpModeDetector.cs;RecommendationStabilizer.cs;RecordingModels.cs;ReplayAnalyzer.cs;ScenarioLibrary.cs;TargetEvaluator.cs" />
+  </ItemGroup>
+
 </Project>
