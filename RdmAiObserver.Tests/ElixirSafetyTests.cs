@@ -140,7 +140,7 @@ public sealed class ElixirSafetyTests
             [new RecordedGameState { State = state }], DateTime.UnixEpoch);
 
         Assert.Equal(1, report.Analysis.SnapshotCount);
-        Assert.Equal(7, report.FormatVersion);
+        Assert.Equal(ReplayReportSchema.CurrentVersion, report.FormatVersion);
     }
 
     [Fact]
@@ -206,6 +206,7 @@ public sealed class ElixirSafetyTests
         var state = new GameState
         {
             LoggedIn = true,
+            TerritoryId = 1293,
             Player = new PlayerSnapshot
             {
                 Name = "Player", Hp = 35000, MaxHp = 58500, Mp = 3000, MaxMp = 10000

@@ -64,6 +64,17 @@ Console.WriteLine($"Simulated / rejected commands: {simulation.SimulatedCommands
 Console.WriteLine($"Verified / failed transitions: {simulation.VerifiedCommands} / {simulation.VerificationFailures}");
 Console.WriteLine($"Not observable at snapshot interval: {simulation.UnverifiableCommands}");
 Console.WriteLine($"Emergency stops: {simulation.EmergencyStops}");
+Console.WriteLine($"Sprint opportunities / missed: {replay.Analysis.SprintRecommendedUseOpportunityCount} / {replay.Analysis.SprintMissedOpportunityCount}");
+Console.WriteLine($"Sprint active / likely cancellations: {replay.Analysis.SprintActiveDurationSeconds:F1}s / {replay.Analysis.SprintLikelyCancellationCount}");
+Console.WriteLine($"Targets changed: {replay.MatchEvents.TargetChanges}");
+Console.WriteLine($"Engagement starts / ends: {replay.MatchEvents.EngagementStarts} / {replay.MatchEvents.EngagementEnds}");
+Console.WriteLine($"Consistency issues: {replay.ConsistencyIssues.Count}");
+foreach (var issue in replay.ConsistencyIssues)
+    Console.WriteLine($"Consistency {issue.Kind} at {issue.CapturedAtUtc:O}: {issue.Previous} -> {issue.Current} ({issue.Detail})");
+foreach (var diagnostic in replay.Diagnostics)
+    Console.WriteLine($"Diagnostic {diagnostic.Severity} {diagnostic.Code}: {diagnostic.AffectedSnapshots} - {diagnostic.Message}");
+foreach (var usage in replay.ActionUsage)
+    Console.WriteLine($"Action {usage.Action}: {usage.Uses} uses, {usage.RecommendationMatches} advised ({usage.AgreementPercent:F1}%)");
 foreach (var group in simulation.Verifications
              .Where(verification => verification.Result == CommandVerificationResult.Failed)
              .GroupBy(verification => verification.Reason)

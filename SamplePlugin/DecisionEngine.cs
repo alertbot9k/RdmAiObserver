@@ -31,7 +31,10 @@ public static class DecisionEngine
         var state = facts.State;
         var player = state.Player;
         if (player == null || player.MaxHp == 0)
-            return Recommend(DecisionPriority.Wait, "Wait for player data", "The player snapshot is incomplete.");
+            return Recommend(DecisionPriority.Wait, "Wait for player data", "The player snapshot is incomplete.", RecommendationConfidence.Low);
+
+        if (facts.Mode == ObservedPvpMode.Unknown)
+            return Recommend(DecisionPriority.Observe, "Observe outside confirmed CC", "No confirmed Crystalline Conflict mode evidence supports combat advice.", RecommendationConfidence.Low);
 
         var hp = Percent(player.Hp, player.MaxHp);
         var targetHp = state.Target?.Hp is uint current && state.Target.MaxHp is uint maximum && maximum > 0
@@ -259,8 +262,9 @@ public static class DecisionEngine
 
     private static float Percent(uint current, uint maximum) => current * 100f / maximum;
 
-    private static DecisionRecommendation Recommend(DecisionPriority priority, string action, string reason) =>
-        new(priority, action, reason);
+    private static DecisionRecommendation Recommend(DecisionPriority priority, string action, string reason,
+        RecommendationConfidence confidence = RecommendationConfidence.High) =>
+        new(priority, action, reason) { Confidence = confidence };
 
     private static string? FindStatus(IEnumerable<StatusSnapshot>? statuses, HashSet<string> names)
     {
@@ -348,4 +352,9 @@ public enum DecisionPriority
     Retreat
 }
 
-public sealed record DecisionRecommendation(DecisionPriority Priority, string Recommendation, string Reason);
+public enum RecommendationConfidence { Low, Medium, High }
+
+public sealed record DecisionRecommendation(DecisionPriority Priority, string Recommendation, string Reason)
+{
+    public RecommendationConfidence Confidence { get; init; } = RecommendationConfidence.High;
+}

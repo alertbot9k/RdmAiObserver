@@ -34,6 +34,7 @@ public class MainWindow : Window, IDisposable
     private readonly CombatTrendTracker liveTrendTracker = new();
     private readonly CombatTrendTracker recordingTrendTracker = new();
     private readonly MatchLifecycleTracker matchLifecycleTracker = new();
+    private readonly MovementTrendTracker movementTrendTracker = new();
 
     public MainWindow()
         : base($"FFXIV Observer v{BuildInfo.Version}##ObserverMain")
@@ -73,6 +74,7 @@ public class MainWindow : Window, IDisposable
     {
         var liveState = GameStateCapture.Capture();
         var lifecycle = matchLifecycleTracker.Update(liveState);
+        var liveMovement = movementTrendTracker.Update(liveState, DateTime.UtcNow);
         var scenario = scenarioIndex >= 0 ? ScenarioLibrary.Get(scenarioIndex) : null;
         var state = scenario?.State ?? replayState ?? liveState;
 
@@ -235,7 +237,21 @@ public class MainWindow : Window, IDisposable
         ImGui.TextUnformatted(replayMessage);
         ImGui.TextUnformatted($"Detected mode: {observedMode}");
         ImGui.TextUnformatted($"CC lifecycle: {lifecycle.State}");
-        ImGui.TextWrapped($"Lifecycle evidence: {lifecycle.Reason}");
+        var team = TeamAwarenessEvaluator.Evaluate(state);
+        var crystalStrategy = CrystalStrategyEvaluator.Evaluate(state,
+            scenario == null && replayState == null ? liveMovement : null);
+
+        if (ImGui.CollapsingHeader("Match overview", ImGuiTreeNodeFlags.DefaultOpen))
+        {
+            ImGui.TextUnformatted($"Match: {lifecycle.State} | Evidence: {observedMode}");
+            ImGui.TextUnformatted($"Crystal: {crystalStrategy.Strategy} | {crystalStrategy.Recommendation}");
+            ImGui.TextUnformatted($"Teams nearby: {team.NearbyAllies + 1} allies / {team.NearbyEnemies} enemies | advantage {team.NumericalAdvantage:+#;-#;0}");
+            ImGui.TextUnformatted($"Retreat: {team.RetreatDirection} | evidence {team.Confidence}");
+            if (liveMovement != null && scenario == null && replayState == null)
+                ImGui.TextUnformatted($"Movement: {liveMovement.PlayerSpeed:F1}y/s | crystal {liveMovement.CrystalSpeed:F1}y/s | closing {(-liveMovement.CrystalDistanceChangePerSecond):F1}y/s");
+            ImGui.TextWrapped($"Lifecycle evidence: {lifecycle.Reason}");
+            ImGui.TextWrapped($"Crystal evidence: {crystalStrategy.Reason}");
+        }
 
         if (state.Objective != null)
         {
@@ -269,6 +285,13 @@ public class MainWindow : Window, IDisposable
             ImGui.TextUnformatted($"Recommendation changes: {replayAnalysis.RecommendationChanges} ({replayAnalysis.ChangesPerMinute:F1}/minute)");
             ImGui.TextUnformatted($"Most common advice: {replayAnalysis.MostCommonRecommendation}");
             ImGui.TextUnformatted($"Most common action: {replayAnalysis.MostCommonAction}");
+            if (replayReport != null)
+            {
+                ImGui.TextUnformatted($"Consistency issues: {replayReport.ConsistencyIssues.Count}");
+                ImGui.TextUnformatted($"Diagnostics: {replayReport.Diagnostics.Count(diagnostic => diagnostic.Severity != DiagnosticSeverity.Info)} warning/error item(s)");
+                foreach (var diagnostic in replayReport.Diagnostics.Where(diagnostic => diagnostic.Severity != DiagnosticSeverity.Info).Take(5))
+                    ImGui.BulletText($"{diagnostic.Code}: {diagnostic.AffectedSnapshots} - {diagnostic.Message}");
+            }
         }
 
 
@@ -299,6 +322,7 @@ public class MainWindow : Window, IDisposable
             : recommendationStabilizer.Select(rawRecommendation, DateTime.UtcNow);
         ImGui.TextUnformatted($"Recommendation: {recommendation.Recommendation}");
         ImGui.TextUnformatted($"Priority: {recommendation.Priority}");
+        ImGui.TextUnformatted($"Confidence: {recommendation.Confidence}");
         ImGui.TextWrapped($"Reason: {recommendation.Reason}");
         var sprint = SprintEvaluator.Evaluate(state);
         ImGui.TextUnformatted($"Mobility: {sprint.Recommendation}");

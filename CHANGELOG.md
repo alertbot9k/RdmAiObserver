@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Added crystal approach, contest, escort, retreat, and regroup strategy using
+  team positions, local numerical advantage, HP, and successive movement samples.
+- Added ally clustering, isolation, focus-target, retreat-direction, target-change,
+  engagement, spawn-protection, death, and respawn analysis.
+- Added confidence labels and abstention outside confirmed Crystalline Conflict.
+- Added a compact match/crystal/team/mobility/evidence UI overview.
+- Added replay consistency auditing, per-action agreement, and actionable recording
+  diagnostics for missing or incomplete evidence.
+- Added a synthetic CC strategy corpus and expanded automated coverage to 120 cases.
+- Centralized version `0.4.0`, separated replay-report schema version 2 from recording
+  schema version 7, improved release artifact naming, and added release verification.
 - Add offline Sprint metrics for recommended-use opportunities, missed opportunities,
   estimated active duration, and likely cancellation during combat.
 - Add a stateful Crystalline Conflict lifecycle detector for outside, loading,

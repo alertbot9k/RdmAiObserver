@@ -8,6 +8,11 @@ public static class RecordingSchema
     public const int CurrentVersion = 7;
 }
 
+public static class ReplayReportSchema
+{
+    public const int CurrentVersion = 2;
+}
+
 public sealed class RecordedGameState
 {
     // Version 7 adds the confirmed crystal snapshot and combatant world positions

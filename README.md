@@ -35,7 +35,8 @@ move the character, select targets, or issue game commands.
   engaged-time targeting, and advice/action-window agreement offline.
 - Tolerates legacy or incomplete replay frames with a missing timestamp during
   combat-trend analysis.
-- Runs 57 deterministic scenario checks plus 108 automated tests covering decisions,
+- Runs 57 deterministic infrastructure checks plus 120 automated cases, including
+  a synthetic CC strategy corpus, covering decisions,
   normalization, and replay infrastructure in a standalone project, without
   launching FFXIV.
 - Converts recommendations into typed shadow commands for actions, target
@@ -58,6 +59,16 @@ move the character, select targets, or issue game commands.
   dead/respawning, results, and exited transitions, with evidence shown in the UI.
 - Reports offline Sprint-use opportunities, missed opportunities, estimated active
   duration, and likely combat cancellations without claiming exact input causality.
+- Derives crystal approach, contest, escort, retreat, and regroup strategy from
+  objective distance, team positions, local numbers, HP, and movement history.
+- Tracks ally clustering, isolation, numerical advantage, focus candidates, and
+  a coordinate-derived retreat direction.
+- Audits replay recommendation reversals only after accounting for target, range,
+  mitigation, death, and urgent-response context.
+- Emits recording diagnostics for missing timestamps, legacy schemas, capture gaps,
+  incomplete nearby scans, crystal coverage, and Sprint readiness.
+- Uses a separate replay-report schema and a repository-wide central version;
+  `scripts/verify-release.ps1` checks tests, build output, and DLL metadata.
 
 ## Architecture
 
@@ -69,7 +80,8 @@ the game-state models, normalized facts, combat decisions, target selection,
 scenarios, action inference, and replay analysis without Dalamud references.
 The plugin references the same core assembly that the offline checks use.
 `RdmAiObserver.Tests` runs the scenario and infrastructure checks as a
-command-line regression suite.
+command-line regression suite. `RdmAiObserver.Analyzer` regenerates current replay,
+diagnostic, consistency, action-usage, and shadow-policy results from saved JSON.
 
 ## Offline workflow
 
@@ -105,9 +117,12 @@ or set `DALAMUD_HOME` to their directory, then run:
 
 ```sh
 dotnet build SamplePlugin.slnx --configuration Release
+./scripts/verify-release.ps1
+./scripts/package-release.ps1
 ```
 
-The output is under `SamplePlugin/bin/x64/Release`. GitHub Actions runs the
+The output is under `SamplePlugin/bin/x64/Release`; the packaging script writes
+`artifacts/RdmAiObserver-<version>.zip`. GitHub Actions runs the
 portable checks on Linux and the plugin build on Windows. The downloaded
 Dalamud distribution and the plugin still need Windows and in-game validation
 after game or Dalamud API updates.

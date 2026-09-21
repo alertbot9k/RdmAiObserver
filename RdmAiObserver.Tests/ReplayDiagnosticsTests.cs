@@ -1,0 +1,53 @@
+using SamplePlugin;
+using Xunit;
+
+namespace RdmAiObserver.Tests;
+
+public sealed class ReplayDiagnosticsTests
+{
+    [Fact]
+    public void Diagnostics_explain_missing_crystal_and_sprint_evidence()
+    {
+        var frames = new[] { Frame(DateTime.UnixEpoch, State()) };
+        var diagnostics = RecordingDiagnostics.Analyze(frames);
+        Assert.Contains(diagnostics, issue => issue.Code == "missing-crystal");
+        Assert.Contains(diagnostics, issue => issue.Code == "missing-sprint");
+    }
+
+    [Fact]
+    public void Event_tracker_counts_lifecycle_target_and_engagement_transitions()
+    {
+        var protectedState = State();
+        protectedState.Player!.Statuses.Add(new StatusSnapshot { Name = "Invincibility" });
+        var engaged = State();
+        engaged.Target = new TargetSnapshot { ObjectId = 10, Name = "One", Hp = 1, MaxHp = 1, Distance = 10 };
+        var changed = State();
+        changed.Target = new TargetSnapshot { ObjectId = 11, Name = "Two", Hp = 1, MaxHp = 1, Distance = 10 };
+        var dead = State(); dead.Player!.Hp = 0;
+        var respawn = State(); respawn.Player!.Statuses.Add(new StatusSnapshot { Name = "Invincibility" });
+        var events = MatchEventTracker.Analyze(new[] { Frame(0, protectedState), Frame(2, engaged), Frame(4, changed), Frame(6, dead), Frame(8, respawn) });
+        Assert.Equal(1, events.Deaths);
+        Assert.Equal(1, events.Respawns);
+        Assert.Equal(1, events.TargetChanges);
+        Assert.Equal(1, events.EngagementStarts);
+        Assert.Equal(1, events.EngagementEnds);
+        Assert.Equal(1, events.SpawnProtectionEntries);
+        Assert.Equal(1, events.SpawnProtectionExits);
+    }
+
+    [Fact]
+    public void Consistency_analyzer_flags_same_target_rapid_reversal()
+    {
+        var a = State(); a.Target = Target(10); a.Player!.Actions.Add(new ActionCooldownSnapshot { Name = "Resolution", IsAvailable = true });
+        var b = State(); b.Target = Target(10); b.Player!.Actions.Add(new ActionCooldownSnapshot { Name = "Resolution", IsCoolingDown = true });
+        var c = State(); c.Target = Target(10); c.Player!.Actions.Add(new ActionCooldownSnapshot { Name = "Resolution", IsAvailable = true });
+        var issues = RecommendationConsistencyAnalyzer.Analyze(new[] { Frame(0, a), Frame(2, b), Frame(4, c) });
+        Assert.Contains(issues, issue => issue.Kind == "RapidReversal");
+    }
+
+    private static TargetSnapshot Target(float distance) => new() { ObjectId = 10, Name = "Enemy", Hp = 50000, MaxHp = 58500, Distance = distance };
+    private static RecordedGameState Frame(int seconds, GameState state) => Frame(DateTime.UnixEpoch.AddSeconds(seconds), state);
+    private static RecordedGameState Frame(DateTime at, GameState state) => new() { CapturedAtUtc = at, State = state };
+    private static GameState State() => new() { TerritoryId = 1116, NearbyScanComplete = true,
+        Player = new PlayerSnapshot { ObjectId = 1, Hp = 50000, MaxHp = 58500 } };
+}

@@ -19,6 +19,9 @@ jobs:
       run: dotnet build RdmAiObserver.Core.slnx --configuration Release
     - name: Run offline scenarios
       run: dotnet test RdmAiObserver.Core.slnx --configuration Release --no-build
+    - name: Verify formatting and release metadata
+      shell: pwsh
+      run: ./scripts/verify-release.ps1 -SkipPluginBuild
 
   build:
     runs-on: windows-2022
@@ -43,10 +46,14 @@ jobs:
     - name: Build with dotnet
       run: dotnet build SamplePlugin.slnx --configuration Release
 
+    - name: Package release
+      shell: pwsh
+      run: ./scripts/package-release.ps1
+
     - name: Store artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: SamplePlugin
-        path: .\SamplePlugin\bin\x64\Release\SamplePlugin\*
+        name: RdmAiObserver-${{ github.sha }}
+        path: .\artifacts\RdmAiObserver-*.zip
         if-no-files-found: error
         retention-days: 1

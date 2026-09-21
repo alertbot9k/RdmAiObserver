@@ -332,6 +332,7 @@ public static class ScenarioLibrary
             playerHp: 58500,
             targetHp: 50000,
             playerStatus: "Frontline March");
+        misleadingStatus.TerritoryId = 0;
         if (PvpModeDetector.Detect(misleadingStatus) != ObservedPvpMode.Unknown)
             failures.Add("PvP mode detector incorrectly treated a combat status as duty evidence.");
     }
@@ -353,7 +354,8 @@ public static class ScenarioLibrary
                 }
             },
             capturedAt);
-        if (report.Timeline.Count != 1 || report.Timeline[0].Kind != "Recommendation")
+        if (report.Timeline.Count(item => item.Kind == "Recommendation") != 1 ||
+            report.Timeline[0].Kind != "Recommendation")
             failures.Add("Replay report did not produce its initial recommendation event.");
 
         var protectedAnalysis = ReplayAnalyzer.Analyze(new List<RecordedGameState>
@@ -420,7 +422,9 @@ public static class ScenarioLibrary
         var state = new GameState
         {
             LoggedIn = true,
-            TerritoryId = 1033,
+            TerritoryId = 1034,
+            NearbyScanRadius = 60f,
+            NearbyScanComplete = true,
             Player = new PlayerSnapshot
             {
                 Name = "Blackjet Morgul",

@@ -11,6 +11,7 @@
     <Compile Include="../SamplePlugin/DecisionEngine.cs" />
     <Compile Include="../SamplePlugin/TargetEvaluator.cs" />
     <Compile Include="../SamplePlugin/ScenarioLibrary.cs" />
+    <Compile Include="../SamplePlugin/StrategicScenarioLibrary.cs" />
     <Compile Include="../SamplePlugin/ReplayAnalyzer.cs" />
     <Compile Include="../SamplePlugin/RecordingModels.cs" />
     <Compile Include="../SamplePlugin/ActionInferenceEngine.cs" />
@@ -22,6 +23,12 @@
     <Compile Include="../SamplePlugin/ObservationFacts.cs" />
     <Compile Include="../SamplePlugin/ObjectiveEvaluator.cs" />
     <Compile Include="../SamplePlugin/MatchLifecycleTracker.cs" />
+    <Compile Include="../SamplePlugin/MatchEventTracker.cs" />
+    <Compile Include="../SamplePlugin/MovementTrendTracker.cs" />
+    <Compile Include="../SamplePlugin/TeamAwarenessEvaluator.cs" />
+    <Compile Include="../SamplePlugin/CrystalStrategyEvaluator.cs" />
+    <Compile Include="../SamplePlugin/RecordingDiagnostics.cs" />
+    <Compile Include="../SamplePlugin/RecommendationConsistencyAnalyzer.cs" />
     <Compile Include="../SamplePlugin/SprintEvaluator.cs" />
     <Compile Include="../SamplePlugin/PolicyPlanner.cs" />
     <Compile Include="../SamplePlugin/ControlLayer.cs" />

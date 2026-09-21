@@ -14,7 +14,9 @@ public static class ReplayAnalyzer
         snapshots = OrderSnapshots(snapshots);
         var events = new List<ReplayTimelineEvent>();
         var trendTracker = new CombatTrendTracker();
+        var movementTracker = new MovementTrendTracker();
         string? previousRecommendation = null;
+        CrystalStrategy? previousCrystalStrategy = null;
         ulong previousTargetObjectId = 0;
         string? previousTargetName = null;
         GameState? previousState = null;
@@ -22,7 +24,9 @@ public static class ReplayAnalyzer
         foreach (var snapshot in snapshots)
         {
             var trend = trendTracker.Update(snapshot.State, snapshot.CapturedAtUtc);
+            var movement = movementTracker.Update(snapshot.State, snapshot.CapturedAtUtc);
             var recommendation = DecisionEngine.Evaluate(snapshot.State, trend);
+            var crystalRecommendation = CrystalStrategyEvaluator.Evaluate(snapshot.State, movement);
             var observedActions = ActionInferenceEngine.Infer(
                 previousState, snapshot.State, snapshot.CapturedAtUtc);
             previousState = snapshot.State;
@@ -51,6 +55,14 @@ public static class ReplayAnalyzer
             previousTargetObjectId = targetObjectId;
             previousTargetName = targetName;
 
+            if (previousCrystalStrategy != crystalRecommendation.Strategy)
+            {
+                events.Add(new ReplayTimelineEvent(snapshot.CapturedAtUtc, "CrystalStrategy",
+                    crystalRecommendation.Recommendation, crystalRecommendation.Reason,
+                    crystalRecommendation.Confidence.ToString(), hpPercent, snapshot.State.Target?.Name));
+                previousCrystalStrategy = crystalRecommendation.Strategy;
+            }
+
             if (player is not { Hp: > 0 })
                 continue;
 
@@ -70,7 +82,13 @@ public static class ReplayAnalyzer
             }
         }
 
-        return new ReplayReport(RecordingSchema.CurrentVersion, generatedAtUtc, Analyze(snapshots), events);
+        return new ReplayReport(ReplayReportSchema.CurrentVersion, generatedAtUtc, Analyze(snapshots), events)
+        {
+            Diagnostics = RecordingDiagnostics.Analyze(snapshots),
+            ConsistencyIssues = RecommendationConsistencyAnalyzer.Analyze(snapshots),
+            MatchEvents = MatchEventTracker.Analyze(snapshots),
+            ActionUsage = AnalyzeActionUsage(snapshots)
+        };
     }
 
     public static ReplayAnalysis Analyze(IReadOnlyList<RecordedGameState> snapshots)
@@ -392,13 +410,44 @@ public static class ReplayAnalyzer
 
         return bestCount == 0 ? bestName : $"{bestName} ({bestCount})";
     }
+
+    private static List<ActionUsageSummary> AnalyzeActionUsage(IReadOnlyList<RecordedGameState> snapshots)
+    {
+        var counts = new Dictionary<string, (int Uses, int Matches)>(StringComparer.OrdinalIgnoreCase);
+        GameState? previous = null;
+        DecisionRecommendation? previousAdvice = null;
+        foreach (var frame in snapshots.OrderBy(frame => frame.CapturedAtUtc))
+        {
+            foreach (var action in ActionInferenceEngine.Infer(previous, frame.State, frame.CapturedAtUtc).Where(IsReliable))
+            {
+                counts.TryGetValue(action.Name, out var count);
+                counts[action.Name] = (count.Uses + 1,
+                    count.Matches + (previousAdvice != null && MentionsAction(previousAdvice.Recommendation, action.Name) ? 1 : 0));
+            }
+            previousAdvice = frame.State.Player is { Hp: > 0 } ? DecisionEngine.Evaluate(frame.State) : null;
+            previous = frame.State;
+        }
+        return counts.OrderByDescending(pair => pair.Value.Uses)
+            .Select(pair => new ActionUsageSummary(pair.Key, pair.Value.Uses, pair.Value.Matches)).ToList();
+    }
 }
 
 public sealed record ReplayReport(
     int FormatVersion,
     DateTime GeneratedAtUtc,
     ReplayAnalysis Analysis,
-    List<ReplayTimelineEvent> Timeline);
+    List<ReplayTimelineEvent> Timeline)
+{
+    public List<RecordingDiagnostic> Diagnostics { get; init; } = [];
+    public List<RecommendationConsistencyIssue> ConsistencyIssues { get; init; } = [];
+    public MatchEventSummary MatchEvents { get; init; } = new(0, 0, 0, 0, 0, 0, 0);
+    public List<ActionUsageSummary> ActionUsage { get; init; } = [];
+}
+
+public sealed record ActionUsageSummary(string Action, int Uses, int RecommendationMatches)
+{
+    public float AgreementPercent => Uses == 0 ? 0f : RecommendationMatches * 100f / Uses;
+}
 
 public sealed record ReplayTimelineEvent(
     DateTime CapturedAtUtc,
