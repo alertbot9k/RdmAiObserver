@@ -29,17 +29,21 @@ move the character, select targets, or issue game commands.
   engaged-time targeting, and advice/action-window agreement offline.
 - Tolerates legacy or incomplete replay frames with a missing timestamp during
   combat-trend analysis.
-- Runs 57 deterministic offline checks covering decisions and infrastructure in
-  a standalone project, without launching FFXIV.
+- Runs 57 deterministic scenario checks plus automated tests covering decisions,
+  normalization, and replay infrastructure in a standalone project, without
+  launching FFXIV.
 
 ## Architecture
 
 `SamplePlugin` owns Dalamud services, game-state capture, the recorder, and the
-observer window. `RdmAiObserver.Core` compiles the game-state models, combat
-decisions, target selection, scenarios, action inference, and replay analysis
-without Dalamud references. The plugin references the same core assembly that
-the offline checks use. `RdmAiObserver.Tests` runs the existing scenario and
-infrastructure checks as a command-line regression suite.
+observer window. `ObservationFacts` is the platform-independent normalization
+boundary: it turns a raw snapshot into explicit mode evidence, freshness,
+threat, protection, and action-readiness facts. `RdmAiObserver.Core` compiles
+the game-state models, normalized facts, combat decisions, target selection,
+scenarios, action inference, and replay analysis without Dalamud references.
+The plugin references the same core assembly that the offline checks use.
+`RdmAiObserver.Tests` runs the scenario and infrastructure checks as a
+command-line regression suite.
 
 ## Offline workflow
 
