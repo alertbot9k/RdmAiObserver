@@ -28,6 +28,7 @@ public static class GameStateCapture
 
         state.Player = new PlayerSnapshot
         {
+            ObjectId = player.EntityId,
             Name = player.Name.ToString(),
             Job = playerState.IsLoaded && playerState.ClassJob.IsValid
                 ? playerState.ClassJob.Value.Name.ToString()

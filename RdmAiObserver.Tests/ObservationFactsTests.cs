@@ -27,6 +27,20 @@ public sealed class ObservationFactsTests
     }
 
     [Fact]
+    public void Facts_do_not_count_the_local_player_as_an_ally()
+    {
+        var state = new GameState
+        {
+            TerritoryId = 1293,
+            Player = new PlayerSnapshot { ObjectId = 42, Name = "Self", Hp = 50000, MaxHp = 58500 }
+        };
+        state.Party.Add(new PartyMemberSnapshot { ObjectId = 42, Name = "Self", Hp = 50000, MaxHp = 58500 });
+        state.Party.Add(new PartyMemberSnapshot { ObjectId = 43, Name = "Ally", Hp = 50000, MaxHp = 58500, Distance = 5f });
+
+        Assert.Equal(1, ObservationFacts.From(state, DateTime.UnixEpoch).AlliesWithin15Yalms);
+    }
+
+    [Fact]
     public void Facts_mark_old_captures_as_observed_but_not_fresh()
     {
         var captured = DateTime.UnixEpoch;

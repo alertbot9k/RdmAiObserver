@@ -15,6 +15,7 @@ public sealed class GameState
 
 public sealed class PlayerSnapshot
 {
+    public ulong ObjectId { get; set; }
     public string Name { get; set; } = "";
     public string Job { get; set; } = "";
     public uint Hp { get; set; }

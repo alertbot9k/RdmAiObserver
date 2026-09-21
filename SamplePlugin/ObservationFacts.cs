@@ -112,7 +112,11 @@ public sealed record ObservationFacts(
     }
 
     private static int CountNearbyAllies(GameState state) =>
-        state.Party.Count(member => member.Hp > 0 && member.MaxHp > 0 && member.Distance <= 15f);
+        state.Party.Count(member => member.Hp > 0 && member.MaxHp > 0 && member.Distance <= 15f &&
+            (state.Player == null ||
+             (member.ObjectId != 0 && state.Player.ObjectId != 0
+                 ? member.ObjectId != state.Player.ObjectId
+                 : !string.Equals(member.Name, state.Player.Name, StringComparison.Ordinal))));
 
     private static bool HasStatus(IEnumerable<StatusSnapshot>? statuses, string name) =>
         statuses?.Any(status => string.Equals(status.Name, name, StringComparison.OrdinalIgnoreCase)) == true;
