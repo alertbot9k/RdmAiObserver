@@ -33,6 +33,7 @@ public static class TargetEvaluator
                 score += 8f;
 
             var candidate = new TargetCandidate(
+                character.ObjectId,
                 character.Name,
                 character.Job,
                 hpPercent,
@@ -61,6 +62,7 @@ public static class TargetEvaluator
 }
 
 public sealed record TargetCandidate(
+    ulong ObjectId,
     string Name,
     string Job,
     float HpPercent,

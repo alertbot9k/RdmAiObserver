@@ -139,7 +139,7 @@ public static class DecisionEngine
         if (targetHp is null or <= 0f)
         {
             return bestTarget != null &&
-                   !string.Equals(target.Name, bestTarget.Name, StringComparison.Ordinal)
+                   !SameTarget(target, bestTarget)
                 ? Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", $"{target.Name} is not a live combat target; {DescribeTarget(bestTarget)}")
                 : Recommend(DecisionPriority.Target, "Find a live target", $"{target.Name} cannot currently be pressured.");
         }
@@ -147,7 +147,7 @@ public static class DecisionEngine
         if (targetInvincible)
         {
             return bestTarget != null &&
-                   !string.Equals(target.Name, bestTarget.Name, StringComparison.Ordinal)
+                   !SameTarget(target, bestTarget)
                 ? Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", $"{target.Name} has Invincibility; {DescribeTarget(bestTarget)}")
                 : Recommend(DecisionPriority.Target, "Find another target", $"{target.Name} has Invincibility and cannot be pressured effectively.");
         }
@@ -170,7 +170,7 @@ public static class DecisionEngine
                 return Recommend(DecisionPriority.Burst, "Use Enchanted Riposte", "The melee chain ignores Guard and is currently available.");
 
             if (bestTarget != null && !bestTarget.IsGuarding &&
-                !string.Equals(target.Name, bestTarget.Name, StringComparison.Ordinal))
+                !SameTarget(target, bestTarget))
                 return Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", $"{target.Name} is Guarding; {DescribeTarget(bestTarget)}");
 
             return Recommend(DecisionPriority.Reposition, "Do not spend ranged burst", $"{target.Name} is Guarding and the Guard-piercing melee chain is unavailable; preserve procs or switch targets.");
@@ -203,7 +203,7 @@ public static class DecisionEngine
             return Recommend(DecisionPriority.Reposition, "Close distance to continue the melee combo", $"The combo is active, but {target.Name} is {target.Distance:F0} yalms away.");
 
         if (bestTarget != null &&
-            !string.Equals(target.Name, bestTarget.Name, StringComparison.Ordinal) &&
+            !SameTarget(target, bestTarget) &&
             targetHp is > 55f && bestTarget.HpPercent + 15f < targetHp)
         {
             return Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", DescribeTarget(bestTarget));
@@ -333,6 +333,11 @@ public static class DecisionEngine
         var markText = target.HasMonomachy ? ", Monomachy active" : "";
         return $"{target.Job} at {target.HpPercent:F0}% HP and {target.Distance:F0} yalms{guardText}{markText}.";
     }
+
+    private static bool SameTarget(TargetSnapshot target, TargetCandidate candidate) =>
+        target.ObjectId != 0 && candidate.ObjectId != 0
+            ? target.ObjectId == candidate.ObjectId
+            : string.Equals(target.Name, candidate.Name, StringComparison.Ordinal);
 }
 
 public enum DecisionPriority
