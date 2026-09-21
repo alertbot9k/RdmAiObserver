@@ -85,4 +85,21 @@ public sealed class PolicyPlannerTests
             step => Assert.Equal(ControlCommandKind.CancelCast, step.Kind),
             step => Assert.Equal(ControlCommandKind.Move, step.Kind));
     }
+
+    [Fact]
+    public void Planner_separates_action_name_from_explanatory_advice()
+    {
+        var state = new GameState
+        {
+            TerritoryId = 1293, NearbyScanRadius = 60f, NearbyScanComplete = true,
+            Player = new PlayerSnapshot { Hp = 50000, MaxHp = 58500 },
+            Target = new TargetSnapshot { ObjectId = 10, Name = "Enemy", Hp = 50000, MaxHp = 58500, Distance = 10f }
+        };
+
+        var plan = PolicyPlanner.Plan(ObservationFacts.From(state, DateTime.UnixEpoch));
+
+        Assert.Single(plan.Steps);
+        Assert.Equal(ControlCommandKind.Action, plan.Steps[0].Kind);
+        Assert.Equal("Jolt III", plan.Steps[0].ActionName);
+    }
 }

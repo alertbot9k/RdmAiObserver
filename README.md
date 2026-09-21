@@ -35,7 +35,7 @@ move the character, select targets, or issue game commands.
   engaged-time targeting, and advice/action-window agreement offline.
 - Tolerates legacy or incomplete replay frames with a missing timestamp during
   combat-trend analysis.
-- Runs 57 deterministic scenario checks plus 87 automated tests covering decisions,
+- Runs 57 deterministic scenario checks plus 88 automated tests covering decisions,
   normalization, and replay infrastructure in a standalone project, without
   launching FFXIV.
 - Converts recommendations into typed shadow commands for actions, target
@@ -97,6 +97,15 @@ The output is under `SamplePlugin/bin/x64/Release`. GitHub Actions runs the
 portable checks on Linux and the plugin build on Windows. The downloaded
 Dalamud distribution and the plugin still need Windows and in-game validation
 after game or Dalamud API updates.
+
+To analyze a saved match without launching FFXIV, run:
+
+```sh
+dotnet run --project RdmAiObserver.Analyzer -- recorded-states.json analysis-output
+```
+
+The command prints replay and shadow-policy metrics and optionally writes fresh
+`replay-analysis.json` and `policy-simulation.json` reports to the output folder.
 
 ## Safety boundary
 

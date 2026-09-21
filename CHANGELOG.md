@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added a portable command-line analyzer for running current replay and typed
+  shadow-policy logic against saved matches without launching FFXIV.
+- Correctly map the explanatory `Use Jolt III and assess` recommendation to the
+  concrete `Jolt III` action in typed shadow-policy plans.
 - Added typed shadow-policy steps for actions, target selection, movement, and
   cast cancellation, with conservative abstention for non-concrete advice.
 - Added an in-plugin `Simulate Policy (No Input)` replay workflow and persisted

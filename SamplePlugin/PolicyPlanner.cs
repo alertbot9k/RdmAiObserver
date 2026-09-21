@@ -98,6 +98,8 @@ public static class PolicyPlanner
             return [Action("Corps-a-corps", purpose, abortIf), Action("Enchanted Riposte", purpose, abortIf)];
         if (text == "Start Enchanted Riposte")
             return [Action("Enchanted Riposte", purpose, abortIf)];
+        if (text == "Use Jolt III and assess")
+            return [Action("Jolt III", purpose, abortIf)];
         if (text == "Purify")
             return [Action("Purify", purpose, abortIf)];
         if (text.StartsWith("Use ", StringComparison.Ordinal))
