@@ -69,13 +69,6 @@ public sealed class NearbyCharacterSnapshot
     public List<StatusSnapshot> Statuses { get; set; } = new();
 }
 
-public enum CombatRelation
-{
-    Unknown,
-    Self,
-    Ally,
-    Hostile
-}
 
 public sealed class PartyMemberSnapshot
 {
