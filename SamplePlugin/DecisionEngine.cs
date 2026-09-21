@@ -20,7 +20,11 @@ public static class DecisionEngine
         => Evaluate(state, null);
 
     public static DecisionRecommendation Evaluate(GameState state, CombatTrend? trend)
+        => Evaluate(ObservationFacts.From(state, DateTime.UtcNow), trend);
+
+    public static DecisionRecommendation Evaluate(ObservationFacts facts, CombatTrend? trend = null)
     {
+        var state = facts.State;
         var player = state.Player;
         if (player == null || player.MaxHp == 0)
             return Recommend(DecisionPriority.Wait, "Wait for player data", "The player snapshot is incomplete.");
@@ -29,25 +33,25 @@ public static class DecisionEngine
         var targetHp = state.Target?.Hp is uint current && state.Target.MaxHp is uint maximum && maximum > 0
             ? Percent(current, maximum)
             : (float?)null;
-        var nearbyEnemies = CombatProximity.CountEnemies(state, 15f);
-        var nearbyEnemiesInSpellRange = CombatProximity.CountEnemies(state, 25f);
-        var nearbyAllies = CountNearbyAllies(state, 15f);
+        var nearbyEnemies = facts.EnemiesWithin15Yalms;
+        var nearbyEnemiesInSpellRange = facts.EnemiesWithin25Yalms;
+        var nearbyAllies = facts.AlliesWithin15Yalms;
         var canSpendMp = player.Mp >= CommonActionMpCost;
-        var purifyReady = IsActionAvailable(player.Actions, "Purify");
-        var guardReady = IsActionAvailable(player.Actions, "Guard");
-        var forteReady = IsActionAvailable(player.Actions, "Forte");
-        var corpsReady = IsActionAvailable(player.Actions, "Corps-a-corps");
-        var displacementReady = IsActionAvailable(player.Actions, "Displacement");
-        var elixirReady = IsActionKnownAndAvailable(player.Actions, "Standard-issue Elixir");
-        var riposteReady = IsActionAvailable(player.Actions, "Enchanted Riposte");
-        var emboldenReady = IsActionAvailable(player.Actions, "Embolden");
-        var resolutionReady = IsActionKnownAndAvailable(player.Actions, "Resolution");
+        var purifyReady = facts.Readiness("Purify") == ActionReadiness.Ready;
+        var guardReady = facts.Readiness("Guard") == ActionReadiness.Ready;
+        var forteReady = facts.Readiness("Forte") == ActionReadiness.Ready;
+        var corpsReady = facts.Readiness("Corps-a-corps") == ActionReadiness.Ready;
+        var displacementReady = facts.Readiness("Displacement") == ActionReadiness.Ready;
+        var elixirReady = facts.Readiness("Standard-issue Elixir") == ActionReadiness.Ready;
+        var riposteReady = facts.Readiness("Enchanted Riposte") == ActionReadiness.Ready;
+        var emboldenReady = facts.Readiness("Embolden") == ActionReadiness.Ready;
+        var resolutionReady = facts.Readiness("Resolution") == ActionReadiness.Ready;
         var bestTarget = TargetEvaluator.FindBest(state);
         var crowdControl = FindStatus(player.Statuses, PurifiableStatuses);
-        var selfGuarding = HasStatus(player.Statuses, "Guard");
-        var selfInvincible = HasStatus(player.Statuses, "Invincibility");
-        var targetGuarding = HasStatus(state.Target?.Statuses, "Guard");
-        var targetInvincible = HasStatus(state.Target?.Statuses, "Invincibility");
+        var selfGuarding = facts.PlayerGuarding;
+        var selfInvincible = facts.PlayerProtected;
+        var targetGuarding = facts.TargetGuarding;
+        var targetInvincible = facts.TargetProtected;
         var targetHasMonomachy = HasStatus(state.Target?.Statuses, "Monomachy");
         var dualcastReady = HasStatus(player.Statuses, "Dualcast");
         var prefulgenceReady = HasStatus(player.Statuses, "Prefulgence Ready");
