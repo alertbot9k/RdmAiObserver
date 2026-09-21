@@ -29,5 +29,6 @@ public sealed class PolicySimulationTests
         Assert.True(result.PlannedSnapshots >= 1);
         Assert.True(result.ObserveOnlySnapshots >= 1);
         Assert.True(result.RecoveryTransitions >= 1);
+        Assert.True(result.SafetyFallbacks >= 1);
     }
 }

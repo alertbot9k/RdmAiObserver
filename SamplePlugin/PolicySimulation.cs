@@ -11,6 +11,7 @@ public sealed record PolicySimulationResult(
     int RejectedCommands,
     int RecoveryTransitions,
     int EmergencyStops,
+    int SafetyFallbacks,
     IReadOnlyList<ControlReceipt> Receipts)
 {
     public float AcceptancePercent => SimulatedCommands + RejectedCommands == 0
@@ -34,6 +35,7 @@ public static class PolicySimulator
         var rejected = 0;
         var recoveries = 0;
         var emergencyStops = 0;
+        var safetyFallbacks = 0;
         var wasActionable = false;
         var now = startTimeUtc ?? DateTime.UtcNow;
 
@@ -45,6 +47,18 @@ public static class PolicySimulator
             {
                 observeOnly++;
                 if (wasActionable) recoveries++;
+                if (safety.Mode == SafetyMode.Enabled)
+                {
+                    safetyFallbacks++;
+                    safety.Disable("Simulation entered observation-only mode.");
+                }
+                wasActionable = false;
+                continue;
+            }
+
+            if (plan.Status == PolicyPlanStatus.Recover)
+            {
+                recoveries++;
                 wasActionable = false;
                 continue;
             }
@@ -70,7 +84,7 @@ public static class PolicySimulator
             now = recording.CapturedAtUtc;
         }
 
-        return new(recordings.Count, planned, observeOnly, simulated, rejected, recoveries, emergencyStops, receipts);
+        return new(recordings.Count, planned, observeOnly, simulated, rejected, recoveries, emergencyStops, safetyFallbacks, receipts);
     }
 
     private static ControlCommand ToCommand(PolicyStep step)
