@@ -78,4 +78,16 @@ public sealed class PolicySimulationTests
 
         Assert.True(result.EmergencyStops >= 1);
     }
+
+    [Fact]
+    public void Simulation_detects_accepted_action_without_observable_effect()
+    {
+        var state = new GameState { TerritoryId = 1293, NearbyScanRadius = 60f, NearbyScanComplete = true,
+            Player = new PlayerSnapshot { Hp = 50000, MaxHp = 58500 } };
+        var recordings = new[] { new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch, State = state },
+            new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch.AddSeconds(1), State = state } };
+        var result = PolicySimulator.Run(recordings, new SafetyPolicy(new HashSet<string> { "Recuperate" }), DateTime.UnixEpoch);
+
+        Assert.True(result.VerificationFailures >= 1);
+    }
 }

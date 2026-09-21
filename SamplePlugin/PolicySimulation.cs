@@ -15,6 +15,8 @@ public sealed record PolicySimulationResult(
     int GameRejectedCommands,
     int TimingFailures,
     int MaxFailureStreak,
+    int VerifiedCommands,
+    int VerificationFailures,
     IReadOnlyList<ControlReceipt> Receipts)
 {
     public float AcceptancePercent => SimulatedCommands + RejectedCommands == 0
@@ -46,6 +48,10 @@ public static class PolicySimulator
         var timingFailures = 0;
         var failureStreak = 0;
         var maxFailureStreak = 0;
+        var verifiedCommands = 0;
+        var verificationFailures = 0;
+        ControlCommand? pendingCommand = null;
+        ObservationFacts? pendingFacts = null;
         var latency = options?.CommandLatency ?? TimeSpan.Zero;
         var maxFailureLimit = options?.MaxFailureStreak ?? 3;
         var wasActionable = false;
@@ -54,6 +60,13 @@ public static class PolicySimulator
         foreach (var recording in recordings)
         {
             var facts = ObservationFacts.From(recording.State, recording.CapturedAtUtc, recording.CapturedAtUtc);
+            if (pendingCommand != null && pendingFacts != null)
+            {
+                if (VerifyTransition(pendingCommand, pendingFacts, facts)) verifiedCommands++;
+                else verificationFailures++;
+                pendingCommand = null;
+                pendingFacts = null;
+            }
             var plan = PolicyPlanner.Plan(facts);
             if (plan.Status == PolicyPlanStatus.ObserveOnly)
             {
@@ -121,11 +134,16 @@ public static class PolicySimulator
                 if (receipt.Result == ControlResult.Simulated) simulated++;
                 else if (receipt.Result == ControlResult.Rejected) rejected++;
                 if (receipt.Result == ControlResult.Simulated) failureStreak = 0;
+                if (receipt.Result == ControlResult.Simulated)
+                {
+                    pendingCommand = command;
+                    pendingFacts = facts;
+                }
             }
             now = recording.CapturedAtUtc;
         }
 
-        return new(recordings.Count, planned, observeOnly, simulated, rejected, recoveries, emergencyStops, safetyFallbacks, gameRejected, timingFailures, maxFailureStreak, receipts);
+        return new(recordings.Count, planned, observeOnly, simulated, rejected, recoveries, emergencyStops, safetyFallbacks, gameRejected, timingFailures, maxFailureStreak, verifiedCommands, verificationFailures, receipts);
     }
 
     private static ControlCommand ToCommand(PolicyStep step)
@@ -146,6 +164,24 @@ public static class PolicySimulator
         if (command.Kind == ControlCommandKind.Action && facts.LineOfSight == LineOfSightState.Blocked)
         { reason = "Line of sight is blocked; simulated game rejected the action."; return false; }
         reason = "Simulated game accepted the command.";
+        return true;
+    }
+
+    private static bool VerifyTransition(ControlCommand command, ObservationFacts before, ObservationFacts after)
+    {
+        if (command.ActionName == "Recuperate")
+            return after.State.Player is { Hp: > 0 } player && before.State.Player is { Hp: > 0 } old &&
+                   (player.Hp > old.Hp || player.Mp < old.Mp);
+        if (command.ActionName == "Purify")
+            return before.PlayerCrowdControlled && !after.PlayerCrowdControlled;
+        if (command.ActionName == "Guard")
+            return after.PlayerMitigation == MitigationState.Guarding;
+        if (command.ActionName == "Standard-issue Elixir")
+            return after.State.Player is { Hp: > 0 } player && before.State.Player is { Hp: > 0 } old &&
+                   (player.Hp > old.Hp || player.Mp > old.Mp);
+        if (command.Kind == ControlCommandKind.Move)
+            return before.State.Player != null && after.State.Player != null &&
+                   (before.State.Player.X != after.State.Player.X || before.State.Player.Y != after.State.Player.Y || before.State.Player.Z != after.State.Player.Z);
         return true;
     }
 }
