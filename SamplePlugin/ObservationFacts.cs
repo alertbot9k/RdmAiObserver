@@ -29,6 +29,13 @@ public enum ObservedMatchPhase
     Protected
 }
 
+public enum ObservationCompleteness
+{
+    Unknown,
+    Partial,
+    Complete
+}
+
 /// <summary>
 /// Platform independent facts derived from one raw capture. Decision rules can
 /// consume this boundary without knowing how Dalamud produced the snapshot.
@@ -40,6 +47,8 @@ public sealed record ObservationFacts(
     DateTime CapturedAtUtc,
     TimeSpan Age,
     ObservationEvidence Freshness,
+    ObservationCompleteness NearbyCompleteness,
+    ObservationEvidence HostilityEvidence,
     ObservedMatchPhase MatchPhase,
     bool HasPlayer,
     bool PlayerAlive,
@@ -70,6 +79,14 @@ public sealed record ObservationFacts(
         var mode = PvpModeDetector.Detect(state);
         var modeEvidence = mode == ObservedPvpMode.Unknown ? ObservationEvidence.Unknown : ObservationEvidence.Confirmed;
         var freshness = age <= TimeSpan.FromSeconds(5) ? ObservationEvidence.Confirmed : ObservationEvidence.Observed;
+        var completeness = state.NearbyScanComplete
+            ? ObservationCompleteness.Complete
+            : state.NearbyScanRadius > 0 ? ObservationCompleteness.Partial : ObservationCompleteness.Unknown;
+        var hostilityEvidence = state.NearbyCharacters.Count == 0
+            ? ObservationEvidence.Unknown
+            : state.NearbyCharacters.All(character => character.Relation != CombatRelation.Unknown)
+                ? ObservationEvidence.Confirmed
+                : ObservationEvidence.Observed;
         var phase = player == null
             ? ObservedMatchPhase.Loading
             : player.Hp == 0
@@ -87,6 +104,8 @@ public sealed record ObservationFacts(
             capturedAtUtc,
             age,
             freshness,
+            completeness,
+            hostilityEvidence,
             phase,
             player != null,
             player is { Hp: > 0 },

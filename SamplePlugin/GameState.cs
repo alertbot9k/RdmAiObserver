@@ -7,6 +7,8 @@ public sealed class GameState
     public bool LoggedIn { get; set; }
     public bool PvpUiActive { get; set; }
     public uint TerritoryId { get; set; }
+    public float NearbyScanRadius { get; set; }
+    public bool NearbyScanComplete { get; set; }
     public PlayerSnapshot? Player { get; set; }
     public TargetSnapshot? Target { get; set; }
     public List<PartyMemberSnapshot> Party { get; set; } = new();
@@ -58,12 +60,21 @@ public sealed class NearbyCharacterSnapshot
     public string Name { get; set; } = "";
     public string Job { get; set; } = "";
     public string Kind { get; set; } = "";
+    public CombatRelation Relation { get; set; }
     public float Distance { get; set; }
     public uint Hp { get; set; }
     public uint MaxHp { get; set; }
     public bool IsCasting { get; set; }
     public CastSnapshot? Cast { get; set; }
     public List<StatusSnapshot> Statuses { get; set; } = new();
+}
+
+public enum CombatRelation
+{
+    Unknown,
+    Self,
+    Ally,
+    Hostile
 }
 
 public sealed class PartyMemberSnapshot

@@ -6,13 +6,17 @@ namespace SamplePlugin;
 
 public static class GameStateCapture
 {
+    private const float NearbyCaptureRadius = 60f;
+
     public static GameState Capture()
     {
         var state = new GameState
         {
             LoggedIn = Plugin.ClientState.IsLoggedIn,
             PvpUiActive = Plugin.Condition[ConditionFlag.PvPDisplayActive],
-            TerritoryId = Plugin.ClientState.TerritoryType
+            TerritoryId = Plugin.ClientState.TerritoryType,
+            NearbyScanRadius = NearbyCaptureRadius,
+            NearbyScanComplete = true
         };
 
         if (!state.LoggedIn)
@@ -79,6 +83,7 @@ public static class GameStateCapture
                     ? character.ClassJob.Value.Name.ToString()
                     : "Unknown",
                 Kind = character.ObjectKind.ToString(),
+                Relation = IsPartyMember(character.EntityId, character.Name.ToString(), state),
                 Distance = distance,
                 Hp = character.CurrentHp,
                 MaxHp = character.MaxHp,
@@ -100,6 +105,7 @@ public static class GameStateCapture
                 Distance = System.Numerics.Vector3.Distance(
                     position, target.Position)
             };
+
 
             // Objects such as doors do not have combat HP or status lists.
             if (target is ICharacter character)
@@ -143,6 +149,18 @@ public static class GameStateCapture
         }
 
         return result;
+    }
+
+    private static CombatRelation IsPartyMember(ulong objectId, string name, GameState state)
+    {
+        foreach (var member in state.Party)
+        {
+            if ((objectId != 0 && member.ObjectId == objectId) ||
+                (objectId == 0 && string.Equals(member.Name, name, System.StringComparison.Ordinal)))
+                return CombatRelation.Ally;
+        }
+
+        return CombatRelation.Hostile;
     }
 
     private static CastSnapshot? CaptureCast(IBattleChara character)

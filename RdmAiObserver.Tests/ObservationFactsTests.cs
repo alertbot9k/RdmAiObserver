@@ -76,4 +76,25 @@ public sealed class ObservationFactsTests
         Assert.Equal(ObservedMatchPhase.Respawning, ObservationFacts.From(respawning, DateTime.UnixEpoch).MatchPhase);
         Assert.Equal(ObservedMatchPhase.Protected, ObservationFacts.From(protectedState, DateTime.UnixEpoch).MatchPhase);
     }
+
+    [Fact]
+    public void Facts_expose_scan_completeness_and_hostility_evidence()
+    {
+        var state = new GameState
+        {
+            TerritoryId = 1293,
+            NearbyScanRadius = 60f,
+            NearbyScanComplete = true,
+            Player = new PlayerSnapshot { Hp = 50000, MaxHp = 58500 }
+        };
+        state.NearbyCharacters.Add(new NearbyCharacterSnapshot
+        {
+            Name = "Enemy", Relation = CombatRelation.Hostile, Hp = 50000, MaxHp = 58500
+        });
+
+        var facts = ObservationFacts.From(state, DateTime.UnixEpoch);
+
+        Assert.Equal(ObservationCompleteness.Complete, facts.NearbyCompleteness);
+        Assert.Equal(ObservationEvidence.Confirmed, facts.HostilityEvidence);
+    }
 }
