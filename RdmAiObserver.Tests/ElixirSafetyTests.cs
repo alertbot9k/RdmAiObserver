@@ -65,6 +65,41 @@ public sealed class ElixirSafetyTests
     }
 
     [Fact]
+    public void Purify_takes_priority_over_recovery_when_crowd_controlled()
+    {
+        var state = RecoveryState();
+        state.Player!.Statuses.Add(new StatusSnapshot { Name = "Stun", RemainingSeconds = 2f });
+        state.Player.Actions.Add(new ActionCooldownSnapshot
+        {
+            Name = "Purify", IsAvailable = true, CurrentCharges = 1
+        });
+
+        Assert.Equal("Purify", DecisionEngine.Evaluate(state).Recommendation);
+    }
+
+    [Fact]
+    public void Active_guard_takes_priority_over_purify_and_recovery()
+    {
+        var state = RecoveryState();
+        state.Player!.Statuses.Add(new StatusSnapshot { Name = "Guard", RemainingSeconds = 2f });
+        state.Player.Actions.Add(new ActionCooldownSnapshot
+        {
+            Name = "Purify", IsAvailable = true, CurrentCharges = 1
+        });
+
+        Assert.Equal("Hold Guard", DecisionEngine.Evaluate(state).Recommendation);
+    }
+
+    [Fact]
+    public void Critical_health_does_not_start_elixir_cast()
+    {
+        var state = RecoveryState();
+        state.Player!.Hp = 12000;
+
+        Assert.NotEqual("Use Standard-issue Elixir", DecisionEngine.Evaluate(state).Recommendation);
+    }
+
+    [Fact]
     public void Unknown_elixir_readiness_does_not_recommend_it()
     {
         var state = RecoveryState();
