@@ -37,4 +37,27 @@ public sealed class ObservationFactsTests
         Assert.Equal(ObservationEvidence.Observed, facts.Freshness);
         Assert.False(facts.IsFresh);
     }
+
+    [Theory]
+    [InlineData(0u, ObservedMatchPhase.Unknown)]
+    [InlineData(1u, ObservedMatchPhase.Unknown)]
+    public void Facts_do_not_call_unconfirmed_mode_active(uint territory, ObservedMatchPhase expected)
+    {
+        var state = new GameState { TerritoryId = territory, Player = new PlayerSnapshot { Hp = 1, MaxHp = 1 } };
+
+        var facts = ObservationFacts.From(state, DateTime.UnixEpoch);
+
+        Assert.Equal(expected, facts.MatchPhase);
+    }
+
+    [Fact]
+    public void Facts_distinguish_respawn_and_spawn_protection()
+    {
+        var respawning = new GameState { TerritoryId = 1293, Player = new PlayerSnapshot { Hp = 0, MaxHp = 58500 } };
+        var protectedState = new GameState { TerritoryId = 1293, Player = new PlayerSnapshot { Hp = 1, MaxHp = 58500 } };
+        protectedState.Player.Statuses.Add(new StatusSnapshot { Name = "Invincibility" });
+
+        Assert.Equal(ObservedMatchPhase.Respawning, ObservationFacts.From(respawning, DateTime.UnixEpoch).MatchPhase);
+        Assert.Equal(ObservedMatchPhase.Protected, ObservationFacts.From(protectedState, DateTime.UnixEpoch).MatchPhase);
+    }
 }
