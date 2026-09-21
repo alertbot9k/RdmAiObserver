@@ -33,7 +33,7 @@ public sealed class PolicySimulationTests
     }
 
     [Fact]
-    public void Simulation_rejects_actions_against_invulnerable_targets()
+    public void Simulation_abstains_from_actions_against_invulnerable_targets()
     {
         var state = new GameState
         {
@@ -46,7 +46,8 @@ public sealed class PolicySimulationTests
             [new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch, State = state }],
             new SafetyPolicy(new HashSet<string> { "Use Prefulgence", "Target Enemy" }), DateTime.UnixEpoch);
 
-        Assert.True(result.GameRejectedCommands >= 1);
+        Assert.Equal(1, result.ObserveOnlySnapshots);
+        Assert.Equal(0, result.SimulatedCommands);
     }
 
     [Fact]
@@ -83,7 +84,7 @@ public sealed class PolicySimulationTests
     public void Simulation_detects_accepted_action_without_observable_effect()
     {
         var state = new GameState { TerritoryId = 1293, NearbyScanRadius = 60f, NearbyScanComplete = true,
-            Player = new PlayerSnapshot { Hp = 50000, MaxHp = 58500 } };
+            Player = new PlayerSnapshot { Hp = 10000, MaxHp = 58500, Mp = 2000 } };
         var recordings = new[] { new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch, State = state },
             new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch.AddSeconds(1), State = state } };
         var result = PolicySimulator.Run(recordings, new SafetyPolicy(new HashSet<string> { "Recuperate" }), DateTime.UnixEpoch);

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Fixed the plugin/core project boundary so shared policy and safety types compile
+  once, allowing the `0.2.4` Dalamud plugin to build cleanly.
+- Marked the xUnit project explicitly so .NET 10 runs its tests instead of
+  silently skipping them.
+- Record target-identity changes in replay timelines even when the recommendation
+  text stays the same.
+- Prefer a substantially weaker unguarded target while preserving isolation
+  retreat behavior when switching would not create a meaningful advantage.
 - Count a living selected target as a nearby threat when it is missing from
   the nearby-character list, without counting the same observed target twice.
 - Require observed Elixir readiness before suggesting a new cast.

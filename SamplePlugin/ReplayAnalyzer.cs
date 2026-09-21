@@ -15,6 +15,8 @@ public static class ReplayAnalyzer
         var events = new List<ReplayTimelineEvent>();
         var trendTracker = new CombatTrendTracker();
         string? previousRecommendation = null;
+        ulong previousTargetObjectId = 0;
+        string? previousTargetName = null;
         GameState? previousState = null;
 
         foreach (var snapshot in snapshots)
@@ -29,7 +31,12 @@ public static class ReplayAnalyzer
                 ? player.Hp * 100f / player.MaxHp
                 : (float?)null;
 
-            if (!string.Equals(previousRecommendation, recommendation.Recommendation, StringComparison.Ordinal))
+            var targetObjectId = snapshot.State.Target?.ObjectId ?? 0;
+            var targetName = snapshot.State.Target?.Name;
+            var targetChanged = targetObjectId != 0 && previousTargetObjectId != 0
+                ? targetObjectId != previousTargetObjectId
+                : !string.Equals(targetName, previousTargetName, StringComparison.Ordinal);
+            if (!string.Equals(previousRecommendation, recommendation.Recommendation, StringComparison.Ordinal) || targetChanged)
             {
                 events.Add(new ReplayTimelineEvent(
                     snapshot.CapturedAtUtc,
@@ -41,6 +48,8 @@ public static class ReplayAnalyzer
                     snapshot.State.Target?.Name));
                 previousRecommendation = recommendation.Recommendation;
             }
+            previousTargetObjectId = targetObjectId;
+            previousTargetName = targetName;
 
             if (player is not { Hp: > 0 })
                 continue;

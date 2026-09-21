@@ -157,6 +157,11 @@ public static class DecisionEngine
 
         if (targetGuarding)
         {
+            if (bestTarget != null && !bestTarget.IsGuarding &&
+                !SameTarget(target, bestTarget) &&
+                targetHp is not null && bestTarget.HpPercent + 15f < targetHp)
+                return Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", $"{target.Name} is Guarding; {DescribeTarget(bestTarget)}");
+
             if (nearbyEnemies >= 2 && nearbyAllies == 0 &&
                 !enchantedRiposte && !enchantedZwerchhau)
                 return Recommend(DecisionPriority.Reposition, "Disengage toward your team", $"{target.Name} is Guarding while {nearbyEnemies} opponents are nearby and no ally is in support range.");
@@ -171,10 +176,6 @@ public static class DecisionEngine
 
             if (target.Distance <= 5f && riposteReady)
                 return Recommend(DecisionPriority.Burst, "Use Enchanted Riposte", "The melee chain ignores Guard and is currently available.");
-
-            if (bestTarget != null && !bestTarget.IsGuarding &&
-                !SameTarget(target, bestTarget))
-                return Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", $"{target.Name} is Guarding; {DescribeTarget(bestTarget)}");
 
             return Recommend(DecisionPriority.Reposition, "Do not spend ranged burst", $"{target.Name} is Guarding and the Guard-piercing melee chain is unavailable; preserve procs or switch targets.");
         }

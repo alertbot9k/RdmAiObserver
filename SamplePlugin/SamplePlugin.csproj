@@ -14,7 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RdmAiObserver.Core\RdmAiObserver.Core.csproj" />
-    <Compile Remove="ActionInferenceEngine.cs;CombatProximity.cs;CombatTrendTracker.cs;DecisionEngine.cs;GameState.cs;PvpActionIds.cs;PvpModeDetector.cs;RecommendationStabilizer.cs;RecordingModels.cs;ReplayAnalyzer.cs;ScenarioLibrary.cs;TargetEvaluator.cs" />
+    <Compile Remove="ActionInferenceEngine.cs;BuildInfo.cs;CombatProximity.cs;CombatRelation.cs;CombatTrendTracker.cs;ControlLayer.cs;DecisionEngine.cs;GameState.cs;ObservationFacts.cs;OperationalSafety.cs;PolicyCorpusEvaluator.cs;PolicyPlanner.cs;PolicySimulation.cs;PvpActionIds.cs;PvpModeDetector.cs;RecommendationStabilizer.cs;RecordingModels.cs;ReplayAnalyzer.cs;ScenarioLibrary.cs;TargetEvaluator.cs" />
   </ItemGroup>
 
 </Project>
