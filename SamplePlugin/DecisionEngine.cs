@@ -10,6 +10,7 @@ namespace SamplePlugin;
 public static class DecisionEngine
 {
     private const uint CommonActionMpCost = 2000;
+    private const float TargetSwitchHpAdvantage = 25f;
 
     private static readonly HashSet<string> PurifiableStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -208,7 +209,7 @@ public static class DecisionEngine
 
         if (bestTarget != null &&
             !SameTarget(target, bestTarget) &&
-            targetHp is > 55f && bestTarget.HpPercent + 15f < targetHp)
+            targetHp is > 55f && bestTarget.HpPercent + TargetSwitchHpAdvantage < targetHp)
         {
             return Recommend(DecisionPriority.Target, $"Switch to {bestTarget.Name}", DescribeTarget(bestTarget));
         }

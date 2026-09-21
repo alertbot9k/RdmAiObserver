@@ -40,4 +40,24 @@ public sealed class TargetIdentityTests
 
         Assert.Equal("Switch to Twin", recommendation.Recommendation);
     }
+
+    [Fact]
+    public void Marginal_health_advantage_does_not_force_an_unsupported_target_swap()
+    {
+        var state = new GameState
+        {
+            TerritoryId = 1293,
+            Player = new PlayerSnapshot { Hp = 50000, MaxHp = 58500 },
+            Target = new TargetSnapshot
+                { ObjectId = 100, Name = "Current", Distance = 10f, Hp = 50000, MaxHp = 58500 }
+        };
+        state.NearbyCharacters.Add(new NearbyCharacterSnapshot
+            { ObjectId = 100, Name = "Current", Distance = 10f, Hp = 50000, MaxHp = 58500 });
+        state.NearbyCharacters.Add(new NearbyCharacterSnapshot
+            { ObjectId = 200, Name = "Alternative", Distance = 12f, Hp = 38000, MaxHp = 58500 });
+
+        var recommendation = DecisionEngine.Evaluate(state);
+
+        Assert.DoesNotContain("Alternative", recommendation.Recommendation);
+    }
 }

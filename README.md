@@ -35,7 +35,7 @@ move the character, select targets, or issue game commands.
   engaged-time targeting, and advice/action-window agreement offline.
 - Tolerates legacy or incomplete replay frames with a missing timestamp during
   combat-trend analysis.
-- Runs 57 deterministic scenario checks plus 90 automated tests covering decisions,
+- Runs 57 deterministic scenario checks plus 91 automated tests covering decisions,
   normalization, and replay infrastructure in a standalone project, without
   launching FFXIV.
 - Converts recommendations into typed shadow commands for actions, target

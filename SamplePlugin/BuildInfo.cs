@@ -2,6 +2,6 @@ namespace SamplePlugin;
 
 public static class BuildInfo
 {
-    public const string Version = "0.2.7";
-    public const string Milestone = "attributed-transition-verification";
+    public const string Version = "0.2.8";
+    public const string Milestone = "conservative-target-switching";
 }

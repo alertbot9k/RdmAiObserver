@@ -5,6 +5,9 @@
 - Attribute every shadow command transition as verified, failed, or not
   observable, including timestamps and concrete failure reasons.
 - Stop counting commands without a defined next-snapshot effect as verified.
+- Require a 25-point target HP advantage for ordinary target swaps when team
+  focus and objective context are unavailable; forced invalid-target swaps are
+  unchanged.
 - Added a portable command-line analyzer for running current replay and typed
   shadow-policy logic against saved matches without launching FFXIV.
 - Correctly map the explanatory `Use Jolt III and assess` recommendation to the
