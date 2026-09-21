@@ -7,6 +7,14 @@ namespace RdmAiObserver.Tests;
 public sealed class ElixirSafetyTests
 {
     [Fact]
+    public void Confirmed_elixir_action_id_resolves_to_its_name()
+    {
+        Assert.True(PvpActionIds.TryGetKnownName(PvpActionIds.StandardIssueElixir, out var name));
+        Assert.Equal("Standard-issue Elixir", name);
+        Assert.False(PvpActionIds.TryGetKnownName(0, out _));
+    }
+
+    [Fact]
     public void Selected_enemy_missing_from_nearby_list_blocks_elixir()
     {
         var state = RecoveryState();

@@ -7,4 +7,16 @@ namespace SamplePlugin;
 public static class PvpActionIds
 {
     public const uint StandardIssueElixir = 29055;
+
+    public static bool TryGetKnownName(uint actionId, out string name)
+    {
+        if (actionId == StandardIssueElixir)
+        {
+            name = "Standard-issue Elixir";
+            return true;
+        }
+
+        name = string.Empty;
+        return false;
+    }
 }
