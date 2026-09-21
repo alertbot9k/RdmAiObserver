@@ -77,7 +77,8 @@ public static class PolicySimulator
 
             planned++;
             wasActionable = true;
-            safety.Enable(recording.CapturedAtUtc);
+            if (safety.Mode != SafetyMode.EmergencyStopped)
+                safety.Enable(recording.CapturedAtUtc);
             foreach (var step in plan.Steps)
             {
                 var command = ToCommand(step);
