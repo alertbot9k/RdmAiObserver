@@ -343,6 +343,17 @@ public class MainWindow : Window, IDisposable
             }
         }
 
+        if (state.NearbyWorldObjects.Count > 0 && ImGui.CollapsingHeader("Objective discovery objects"))
+        {
+            ImGui.TextWrapped("Observed non-player objects only; no object is assumed to be the crystal until its BaseId is confirmed from recordings.");
+            foreach (var worldObject in state.NearbyWorldObjects.OrderBy(worldObject => worldObject.Distance))
+            {
+                ImGui.TextUnformatted(
+                    $"{worldObject.Name} [{worldObject.Kind}/{worldObject.SubKind}] BaseId {worldObject.BaseId} at {worldObject.Distance:F1}y " +
+                    $"({worldObject.X:F1}, {worldObject.Y:F1}, {worldObject.Z:F1})");
+            }
+        }
+
         ImGui.Spacing();
         ImGui.Separator();
 
@@ -551,6 +562,7 @@ public class MainWindow : Window, IDisposable
             WriteJsonAtomically(PolicySimulationFilePath, policySimulation);
             replayMessage = $"Shadow-simulated {savedStates.Count} snapshots with no game input.";
         }
+
         catch (Exception exception)
         {
             replayMessage = $"Could not simulate policy: {exception.Message}";

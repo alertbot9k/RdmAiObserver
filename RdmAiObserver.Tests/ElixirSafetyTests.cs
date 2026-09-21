@@ -140,7 +140,7 @@ public sealed class ElixirSafetyTests
             [new RecordedGameState { State = state }], DateTime.UnixEpoch);
 
         Assert.Equal(1, report.Analysis.SnapshotCount);
-        Assert.Equal(5, report.FormatVersion);
+        Assert.Equal(6, report.FormatVersion);
     }
 
     [Fact]
@@ -162,6 +162,26 @@ public sealed class ElixirSafetyTests
         Assert.NotNull(restored);
         Assert.Equal(1, CombatProximity.CountEnemies(restored.State, 25f));
         Assert.Equal(0, ReplayAnalyzer.Analyze([restored]).ElixirOpportunitySnapshotCount);
+    }
+
+    [Fact]
+    public void Recorded_state_round_trip_preserves_objective_discovery_identity_and_position()
+    {
+        var state = RecoveryState();
+        state.NearbyWorldObjects.Add(new WorldObjectSnapshot
+        {
+            GameObjectId = 100, EntityId = 200, BaseId = 300,
+            Name = "Candidate", Kind = "EventObj", SubKind = 4,
+            IsTargetable = true, Distance = 12.5f, X = 1f, Y = 2f, Z = 3f
+        });
+
+        var restored = JsonSerializer.Deserialize<RecordedGameState>(JsonSerializer.Serialize(
+            new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch, State = state }));
+
+        var candidate = Assert.Single(restored!.State.NearbyWorldObjects);
+        Assert.Equal(300U, candidate.BaseId);
+        Assert.Equal(1f, candidate.X);
+        Assert.Equal(3f, candidate.Z);
     }
 
     [Fact]

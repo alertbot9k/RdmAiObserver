@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.Types;
 
 namespace SamplePlugin;
@@ -7,6 +8,7 @@ namespace SamplePlugin;
 public static class GameStateCapture
 {
     private const float NearbyCaptureRadius = 60f;
+    private const float WorldObjectCaptureRadius = 120f;
 
     public static GameState Capture()
     {
@@ -91,6 +93,37 @@ public static class GameStateCapture
                 Cast = CaptureCast(character),
                 Statuses = CaptureStatuses(character)
             });
+        }
+
+        // Capture a bounded set of non-player objects so objective identities can
+        // be discovered from recordings before any BaseId is treated as the CC
+        // crystal. This is observational and never retains native addresses.
+        if (PvpModeDetector.Detect(state) == ObservedPvpMode.CrystallineConflict)
+        {
+            foreach (var gameObject in Plugin.ObjectTable)
+            {
+                if (gameObject.ObjectKind is not (ObjectKind.BattleNpc or ObjectKind.EventNpc or ObjectKind.EventObj))
+                    continue;
+
+                var distance = System.Numerics.Vector3.Distance(position, gameObject.Position);
+                if (distance > WorldObjectCaptureRadius)
+                    continue;
+
+                state.NearbyWorldObjects.Add(new WorldObjectSnapshot
+                {
+                    GameObjectId = gameObject.GameObjectId,
+                    EntityId = gameObject.EntityId,
+                    BaseId = gameObject.BaseId,
+                    Name = gameObject.Name.ToString(),
+                    Kind = gameObject.ObjectKind.ToString(),
+                    SubKind = gameObject.SubKind,
+                    IsTargetable = gameObject.IsTargetable,
+                    Distance = distance,
+                    X = gameObject.Position.X,
+                    Y = gameObject.Position.Y,
+                    Z = gameObject.Position.Z
+                });
+            }
         }
 
         var target = Plugin.TargetManager.Target;

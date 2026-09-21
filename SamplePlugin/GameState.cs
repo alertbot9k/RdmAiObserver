@@ -13,6 +13,22 @@ public sealed class GameState
     public TargetSnapshot? Target { get; set; }
     public List<PartyMemberSnapshot> Party { get; set; } = new();
     public List<NearbyCharacterSnapshot> NearbyCharacters { get; set; } = new();
+    public List<WorldObjectSnapshot> NearbyWorldObjects { get; set; } = new();
+}
+
+public sealed class WorldObjectSnapshot
+{
+    public ulong GameObjectId { get; set; }
+    public uint EntityId { get; set; }
+    public uint BaseId { get; set; }
+    public string Name { get; set; } = "";
+    public string Kind { get; set; } = "";
+    public byte SubKind { get; set; }
+    public bool IsTargetable { get; set; }
+    public float Distance { get; set; }
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
 }
 
 public sealed class PlayerSnapshot

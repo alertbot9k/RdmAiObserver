@@ -70,6 +70,26 @@ foreach (var group in simulation.Verifications
              .OrderByDescending(group => group.Count()))
     Console.WriteLine($"Transition failure: {group.Count()} x {group.Key}");
 
+var objectiveCandidates = states
+    .SelectMany(state => state.State.NearbyWorldObjects)
+    .Where(candidate => candidate.BaseId != 0)
+    .GroupBy(candidate => new { candidate.BaseId, candidate.Kind, candidate.SubKind, candidate.Name })
+    .Select(group => new
+    {
+        group.Key,
+        Count = group.Count(),
+        MovementSpan = MathF.Sqrt(
+            MathF.Pow(group.Max(candidate => candidate.X) - group.Min(candidate => candidate.X), 2) +
+            MathF.Pow(group.Max(candidate => candidate.Z) - group.Min(candidate => candidate.Z), 2))
+    })
+    .OrderByDescending(candidate => candidate.MovementSpan)
+    .ThenByDescending(candidate => candidate.Count)
+    .Take(10)
+    .ToArray();
+foreach (var candidate in objectiveCandidates)
+    Console.WriteLine($"Objective candidate: BaseId {candidate.Key.BaseId} {candidate.Key.Kind}/{candidate.Key.SubKind} " +
+                      $"'{candidate.Key.Name}' seen {candidate.Count} times, movement span {candidate.MovementSpan:F1}y");
+
 if (args.Length == 2)
 {
     var outputDirectory = Path.GetFullPath(args[1]);

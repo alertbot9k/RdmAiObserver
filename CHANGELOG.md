@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added schema version 6 objective discovery: confirmed CC recordings now retain
+  bounded non-player object IDs, BaseIds, kinds, positions, and targetability.
+- Rank moving objective candidates by stable BaseId in the offline analyzer so
+  the crystal can be confirmed from a recording before strategy uses it.
 - Attribute every shadow command transition as verified, failed, or not
   observable, including timestamps and concrete failure reasons.
 - Stop counting commands without a defined next-snapshot effect as verified.

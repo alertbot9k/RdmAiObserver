@@ -35,7 +35,7 @@ move the character, select targets, or issue game commands.
   engaged-time targeting, and advice/action-window agreement offline.
 - Tolerates legacy or incomplete replay frames with a missing timestamp during
   combat-trend analysis.
-- Runs 57 deterministic scenario checks plus 91 automated tests covering decisions,
+- Runs 57 deterministic scenario checks plus 92 automated tests covering decisions,
   normalization, and replay infrastructure in a standalone project, without
   launching FFXIV.
 - Converts recommendations into typed shadow commands for actions, target
@@ -46,6 +46,9 @@ move the character, select targets, or issue game commands.
   sending game input.
 - Separates verified, failed, and not-observable transitions so actions without
   a reliable next-snapshot effect are never reported as successful.
+- Records bounded non-player world-object identities and positions during
+  confirmed Crystalline Conflict sessions so the moving crystal can be
+  identified from evidence rather than a localized name guess.
 
 ## Architecture
 
