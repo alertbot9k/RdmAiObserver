@@ -5,13 +5,13 @@ namespace SamplePlugin;
 
 public static class RecordingSchema
 {
-    public const int CurrentVersion = 6;
+    public const int CurrentVersion = 7;
 }
 
 public sealed class RecordedGameState
 {
-    // Version 6 adds bounded non-player world-object observations for objective
-    // discovery while remaining backward compatible with older snapshots.
+    // Version 7 adds the confirmed crystal snapshot and combatant world positions
+    // while remaining backward compatible with older snapshots.
     public int FormatVersion { get; set; } = RecordingSchema.CurrentVersion;
     public DateTime CapturedAtUtc { get; set; }
     public GameState State { get; set; } = new();

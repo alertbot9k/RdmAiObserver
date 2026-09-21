@@ -11,9 +11,23 @@ public sealed class GameState
     public bool NearbyScanComplete { get; set; }
     public PlayerSnapshot? Player { get; set; }
     public TargetSnapshot? Target { get; set; }
+    public ObjectiveSnapshot? Objective { get; set; }
     public List<PartyMemberSnapshot> Party { get; set; } = new();
     public List<NearbyCharacterSnapshot> NearbyCharacters { get; set; } = new();
     public List<WorldObjectSnapshot> NearbyWorldObjects { get; set; } = new();
+}
+
+public sealed class ObjectiveSnapshot
+{
+    public ulong GameObjectId { get; set; }
+    public uint BaseId { get; set; }
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+    public float DistanceToPlayer { get; set; }
+    public int AlliesWithin10Yalms { get; set; }
+    public int EnemiesWithin10Yalms { get; set; }
+    public bool IsContested => AlliesWithin10Yalms > 0 && EnemiesWithin10Yalms > 0;
 }
 
 public sealed class WorldObjectSnapshot
@@ -78,6 +92,9 @@ public sealed class NearbyCharacterSnapshot
     public string Kind { get; set; } = "";
     public CombatRelation Relation { get; set; }
     public float Distance { get; set; }
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
     public uint Hp { get; set; }
     public uint MaxHp { get; set; }
     public bool IsCasting { get; set; }
@@ -94,6 +111,9 @@ public sealed class PartyMemberSnapshot
     public uint Hp { get; set; }
     public uint MaxHp { get; set; }
     public float Distance { get; set; }
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
 }
 
 public sealed class CastSnapshot

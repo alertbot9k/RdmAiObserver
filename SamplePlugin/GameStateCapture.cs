@@ -62,7 +62,10 @@ public static class GameStateCapture
                     : "Unknown",
                 Hp = member.CurrentHP,
                 MaxHp = member.MaxHP,
-                Distance = System.Numerics.Vector3.Distance(position, member.Position)
+                Distance = System.Numerics.Vector3.Distance(position, member.Position),
+                X = member.Position.X,
+                Y = member.Position.Y,
+                Z = member.Position.Z
             });
         }
 
@@ -87,6 +90,9 @@ public static class GameStateCapture
                 Kind = character.ObjectKind.ToString(),
                 Relation = IsPartyMember(character.EntityId, character.Name.ToString(), state),
                 Distance = distance,
+                X = character.Position.X,
+                Y = character.Position.Y,
+                Z = character.Position.Z,
                 Hp = character.CurrentHp,
                 MaxHp = character.MaxHp,
                 IsCasting = character.IsCasting,
@@ -125,6 +131,8 @@ public static class GameStateCapture
                 });
             }
         }
+
+        state.Objective = ObjectiveEvaluator.Find(state);
 
         var target = Plugin.TargetManager.Target;
 

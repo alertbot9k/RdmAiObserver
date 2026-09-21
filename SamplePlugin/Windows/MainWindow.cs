@@ -233,6 +233,13 @@ public class MainWindow : Window, IDisposable
         ImGui.TextUnformatted(replayMessage);
         ImGui.TextUnformatted($"Detected mode: {observedMode}");
 
+        if (state.Objective != null)
+        {
+            ImGui.TextUnformatted($"Crystal: {state.Objective.DistanceToPlayer:F1}y away at ({state.Objective.X:F1}, {state.Objective.Y:F1}, {state.Objective.Z:F1})");
+            ImGui.TextUnformatted($"Near crystal: {state.Objective.AlliesWithin10Yalms} allies / {state.Objective.EnemiesWithin10Yalms} enemies" +
+                                  (state.Objective.IsContested ? " (contested)" : ""));
+        }
+
         if (replayAnalysis != null && ImGui.CollapsingHeader("Offline replay analysis"))
         {
             ImGui.TextUnformatted($"Detected mode: {replayAnalysis.Mode}");

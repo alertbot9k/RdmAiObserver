@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Confirmed Tactical Crystal `BaseId 14470` from a 64-frame movement track and
+  promoted it to a first-class objective snapshot.
+- Record combatant world positions and derive player distance, ally/enemy counts,
+  and contested state within 10 yalms of the crystal.
+- Advanced recordings to schema version 7.
 - Added schema version 6 objective discovery: confirmed CC recordings now retain
   bounded non-player object IDs, BaseIds, kinds, positions, and targetability.
 - Rank moving objective candidates by stable BaseId in the offline analyzer so
