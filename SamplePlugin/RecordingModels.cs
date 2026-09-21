@@ -5,7 +5,9 @@ namespace SamplePlugin;
 
 public sealed class RecordedGameState
 {
-    public int FormatVersion { get; set; } = 4;
+    // Version 5 adds stable object identities and normalized lifecycle facts
+    // while remaining backward compatible with older snapshots.
+    public int FormatVersion { get; set; } = 5;
     public DateTime CapturedAtUtc { get; set; }
     public GameState State { get; set; } = new();
     public DecisionRecommendation? Recommendation { get; set; }

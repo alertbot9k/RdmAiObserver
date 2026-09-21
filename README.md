@@ -19,6 +19,8 @@ move the character, select targets, or issue game commands.
   absent from the nearby-character list, and requires observed Elixir readiness
   before recommending a new cast.
 - Records one snapshot every two seconds for up to ten minutes.
+- Stores stable object identities when the game exposes them, while retaining
+  compatibility with older name-based recordings.
 - Infers cooldown, proc-consumption, combo, and medium-confidence Recuperate
   events with evidence labels.
 - Replays saved states through the latest decision and action-inference rules.
