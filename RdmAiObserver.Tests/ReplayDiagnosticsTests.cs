@@ -45,6 +45,15 @@ public sealed class ReplayDiagnosticsTests
         Assert.Contains(issues, issue => issue.Kind == "RapidReversal");
     }
 
+    [Fact]
+    public void Diagnostics_detect_frozen_capture_sequence()
+    {
+        var state = State();
+        state.Player!.Statuses.Add(new StatusSnapshot { Id = 1, Name = "Guard", RemainingSeconds = 4 });
+        var frames = Enumerable.Range(0, 6).Select(index => Frame(index * 2, state)).ToArray();
+        Assert.Contains(RecordingDiagnostics.Analyze(frames), issue => issue.Code == "frozen-capture");
+    }
+
     private static TargetSnapshot Target(float distance) => new() { ObjectId = 10, Name = "Enemy", Hp = 50000, MaxHp = 58500, Distance = distance };
     private static RecordedGameState Frame(int seconds, GameState state) => Frame(DateTime.UnixEpoch.AddSeconds(seconds), state);
     private static RecordedGameState Frame(DateTime at, GameState state) => new() { CapturedAtUtc = at, State = state };

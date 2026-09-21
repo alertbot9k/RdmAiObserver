@@ -45,6 +45,13 @@ public sealed class ScenarioTests
     }
 
     [Fact]
+    public void Mode_detection_recognizes_cloud_nine_territory()
+    {
+        Assert.Equal(ObservedPvpMode.CrystallineConflict,
+            PvpModeDetector.Detect(new GameState { TerritoryId = 1032 }));
+    }
+
+    [Fact]
     public void Mode_detection_recognizes_second_confirmed_live_match_territory()
     {
         var state = new GameState { TerritoryId = 1116 };

@@ -18,6 +18,7 @@ public static class PvpModeDetector
     // IDs only after they have been verified across known-duty recordings.
     private static readonly HashSet<uint> ConfirmedCrystallineConflictTerritories =
     [
+        1032,
         1034,
         1116,
         1293

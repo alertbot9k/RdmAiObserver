@@ -35,7 +35,7 @@ move the character, select targets, or issue game commands.
   engaged-time targeting, and advice/action-window agreement offline.
 - Tolerates legacy or incomplete replay frames with a missing timestamp during
   combat-trend analysis.
-- Runs 57 deterministic infrastructure checks plus 120 automated cases, including
+- Runs 57 deterministic infrastructure checks plus 122 automated cases, including
   a synthetic CC strategy corpus, covering decisions,
   normalization, and replay infrastructure in a standalone project, without
   launching FFXIV.
@@ -66,7 +66,7 @@ move the character, select targets, or issue game commands.
 - Audits replay recommendation reversals only after accounting for target, range,
   mitigation, death, and urgent-response context.
 - Emits recording diagnostics for missing timestamps, legacy schemas, capture gaps,
-  incomplete nearby scans, crystal coverage, and Sprint readiness.
+  frozen/disconnected captures, incomplete nearby scans, crystal coverage, and Sprint readiness.
 - Uses a separate replay-report schema and a repository-wide central version;
   `scripts/verify-release.ps1` checks tests, build output, and DLL metadata.
 

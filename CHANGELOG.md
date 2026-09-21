@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Confirmed territory `1032` as Crystalline Conflict from a disconnected partial
+  match and added diagnostics for frozen snapshot sequences after a capture stall.
 - Added crystal approach, contest, escort, retreat, and regroup strategy using
   team positions, local numerical advantage, HP, and successive movement samples.
 - Added ally clustering, isolation, focus-target, retreat-direction, target-change,
