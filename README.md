@@ -26,6 +26,8 @@ move the character, select targets, or issue game commands.
 - Replays saved states through the latest decision and action-inference rules.
 - Conservatively identifies confirmed Crystalline Conflict recordings from
   territory or live UI evidence without guessing the duty from status names.
+- Classifies observed lifecycle as loading, active, protected, respawning, or
+  unknown so downstream rules can abstain when the match state is uncertain.
 - Automatically writes a compact `replay-analysis.json` timeline and summary.
 - Analyzes deaths, HP pressure, isolation, spawn protection, target range,
   engaged-time targeting, and advice/action-window agreement offline.
