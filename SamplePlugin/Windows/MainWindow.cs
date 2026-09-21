@@ -267,6 +267,7 @@ public class MainWindow : Window, IDisposable
             ImGui.TextUnformatted($"Acceptance: {policySimulation.AcceptancePercent:F1}%");
             ImGui.TextUnformatted($"Recovery transitions / safety fallbacks: {policySimulation.RecoveryTransitions} / {policySimulation.SafetyFallbacks}");
             ImGui.TextUnformatted($"Verified / verification failures: {policySimulation.VerifiedCommands} / {policySimulation.VerificationFailures}");
+            ImGui.TextUnformatted($"Not observable at snapshot interval: {policySimulation.UnverifiableCommands}");
             ImGui.TextUnformatted($"Timing / game rejection failures: {policySimulation.TimingFailures} / {policySimulation.GameRejectedCommands}");
             ImGui.TextUnformatted($"Maximum failure streak: {policySimulation.MaxFailureStreak}");
             ImGui.TextUnformatted($"Emergency stops: {policySimulation.EmergencyStops}");

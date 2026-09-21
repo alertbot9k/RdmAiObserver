@@ -3,6 +3,15 @@ using System.Collections.Generic;
 
 namespace SamplePlugin;
 
+public enum CommandVerificationResult { Verified, Failed, NotObservable }
+
+public sealed record CommandVerification(
+    ControlCommand Command,
+    CommandVerificationResult Result,
+    string Reason,
+    DateTime IssuedAtUtc,
+    DateTime ObservedAtUtc);
+
 public sealed record PolicySimulationResult(
     int SnapshotCount,
     int PlannedSnapshots,
@@ -17,7 +26,9 @@ public sealed record PolicySimulationResult(
     int MaxFailureStreak,
     int VerifiedCommands,
     int VerificationFailures,
-    IReadOnlyList<ControlReceipt> Receipts)
+    int UnverifiableCommands,
+    IReadOnlyList<ControlReceipt> Receipts,
+    IReadOnlyList<CommandVerification> Verifications)
 {
     public float AcceptancePercent => SimulatedCommands + RejectedCommands == 0
         ? 0f : SimulatedCommands * 100f / (SimulatedCommands + RejectedCommands);
@@ -50,7 +61,9 @@ public static class PolicySimulator
         var maxFailureStreak = 0;
         var verifiedCommands = 0;
         var verificationFailures = 0;
-        var pendingCommands = new List<(ControlCommand Command, ObservationFacts Facts)>();
+        var unverifiableCommands = 0;
+        var verifications = new List<CommandVerification>();
+        var pendingCommands = new List<(ControlCommand Command, ObservationFacts Facts, DateTime IssuedAtUtc)>();
         var latency = options?.CommandLatency ?? TimeSpan.Zero;
         var maxFailureLimit = options?.MaxFailureStreak ?? 3;
         var wasActionable = false;
@@ -61,8 +74,12 @@ public static class PolicySimulator
             var facts = ObservationFacts.From(recording.State, recording.CapturedAtUtc, recording.CapturedAtUtc);
             foreach (var pending in pendingCommands)
             {
-                if (VerifyTransition(pending.Command, pending.Facts, facts)) verifiedCommands++;
-                else verificationFailures++;
+                var result = VerifyTransition(pending.Command, pending.Facts, facts, out var reason);
+                if (result == CommandVerificationResult.Verified) verifiedCommands++;
+                else if (result == CommandVerificationResult.Failed) verificationFailures++;
+                else unverifiableCommands++;
+                verifications.Add(new CommandVerification(
+                    pending.Command, result, reason, pending.IssuedAtUtc, recording.CapturedAtUtc));
             }
             pendingCommands.Clear();
             var plan = PolicyPlanner.Plan(facts);
@@ -133,12 +150,12 @@ public static class PolicySimulator
                 else if (receipt.Result == ControlResult.Rejected) rejected++;
                 if (receipt.Result == ControlResult.Simulated) failureStreak = 0;
                 if (receipt.Result == ControlResult.Simulated)
-                    pendingCommands.Add((command, facts));
+                    pendingCommands.Add((command, facts, recording.CapturedAtUtc));
             }
             now = recording.CapturedAtUtc;
         }
 
-        return new(recordings.Count, planned, observeOnly, simulated, rejected, recoveries, emergencyStops, safetyFallbacks, gameRejected, timingFailures, maxFailureStreak, verifiedCommands, verificationFailures, receipts);
+        return new(recordings.Count, planned, observeOnly, simulated, rejected, recoveries, emergencyStops, safetyFallbacks, gameRejected, timingFailures, maxFailureStreak, verifiedCommands, verificationFailures, unverifiableCommands, receipts, verifications);
     }
 
     private static ControlCommand ToCommand(PolicyStep step)
@@ -163,25 +180,54 @@ public static class PolicySimulator
         return true;
     }
 
-    private static bool VerifyTransition(ControlCommand command, ObservationFacts before, ObservationFacts after)
+    private static CommandVerificationResult VerifyTransition(
+        ControlCommand command,
+        ObservationFacts before,
+        ObservationFacts after,
+        out string reason)
     {
         if (command.ActionName == "Recuperate")
-            return after.State.Player is { Hp: > 0 } player && before.State.Player is { Hp: > 0 } old &&
-                   (player.Hp > old.Hp || player.Mp < old.Mp);
+            return Observed(
+                after.State.Player is { Hp: > 0 } player && before.State.Player is { Hp: > 0 } old &&
+                (player.Hp > old.Hp || player.Mp < old.Mp),
+                "HP increased or MP decreased after Recuperate.",
+                "Neither an HP increase nor an MP decrease was observed after Recuperate.", out reason);
         if (command.ActionName == "Purify")
-            return before.PlayerCrowdControlled && !after.PlayerCrowdControlled;
+            return Observed(before.PlayerCrowdControlled && !after.PlayerCrowdControlled,
+                "Observed crowd control cleared after Purify.",
+                "Crowd control was not observed clearing after Purify.", out reason);
         if (command.ActionName == "Guard")
-            return after.PlayerMitigation == MitigationState.Guarding;
+            return Observed(after.PlayerMitigation == MitigationState.Guarding,
+                "Observed Guard mitigation after the command.",
+                "Guard mitigation was not observed after the command.", out reason);
         if (command.ActionName == "Standard-issue Elixir")
-            return after.State.Player is { Hp: > 0 } player && before.State.Player is { Hp: > 0 } old &&
-                   (player.Hp > old.Hp || player.Mp > old.Mp);
+            return Observed(
+                after.State.Player is { Hp: > 0 } player && before.State.Player is { Hp: > 0 } old &&
+                (player.Hp > old.Hp || player.Mp > old.Mp),
+                "Observed HP or MP recovery after Standard-issue Elixir.",
+                "No HP or MP recovery was observed after Standard-issue Elixir.", out reason);
         if (command.Kind == ControlCommandKind.Move)
-            return before.State.Player != null && after.State.Player != null &&
-                   (before.State.Player.X != after.State.Player.X || before.State.Player.Y != after.State.Player.Y || before.State.Player.Z != after.State.Player.Z);
+            return Observed(before.State.Player != null && after.State.Player != null &&
+                (before.State.Player.X != after.State.Player.X || before.State.Player.Y != after.State.Player.Y || before.State.Player.Z != after.State.Player.Z),
+                "Observed player position change after movement advice.",
+                "Player position did not change before the next snapshot.", out reason);
         if (command.Kind == ControlCommandKind.SelectTarget)
-            return after.State.Target?.ObjectId == command.TargetObjectId;
+            return Observed(after.State.Target?.ObjectId == command.TargetObjectId,
+                "Observed the requested target identity.",
+                "The requested target identity was not selected in the next snapshot.", out reason);
         if (command.Kind == ControlCommandKind.CancelCast)
-            return before.State.Player?.Cast != null && after.State.Player?.Cast == null;
-        return true;
+            return Observed(before.State.Player?.Cast != null && after.State.Player?.Cast == null,
+                "Observed the cast end after cancellation advice.",
+                "The cast was still present in the next snapshot.", out reason);
+
+        reason = "No reliable next-snapshot effect is defined for this command.";
+        return CommandVerificationResult.NotObservable;
+    }
+
+    private static CommandVerificationResult Observed(
+        bool condition, string success, string failure, out string reason)
+    {
+        reason = condition ? success : failure;
+        return condition ? CommandVerificationResult.Verified : CommandVerificationResult.Failed;
     }
 }

@@ -148,4 +148,27 @@ public sealed class PolicySimulationTests
         Assert.Equal(2, result.VerifiedCommands);
         Assert.Equal(0, result.VerificationFailures);
     }
+
+    [Fact]
+    public void Simulation_does_not_claim_success_when_an_action_has_no_observable_transition()
+    {
+        var state = new GameState
+        {
+            TerritoryId = 1293, NearbyScanRadius = 60f, NearbyScanComplete = true,
+            Player = new PlayerSnapshot { Hp = 50000, MaxHp = 58500 },
+            Target = new TargetSnapshot { ObjectId = 10, Name = "Enemy", Hp = 50000, MaxHp = 58500, Distance = 10f }
+        };
+        state.Player.Actions.Add(new ActionCooldownSnapshot
+            { Name = "Resolution", IsAvailable = true, CurrentCharges = 1 });
+
+        var result = PolicySimulator.Run([
+            new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch, State = state },
+            new RecordedGameState { CapturedAtUtc = DateTime.UnixEpoch.AddSeconds(1), State = state }],
+            new SafetyPolicy(new HashSet<string> { "Resolution" }), DateTime.UnixEpoch);
+
+        Assert.True(result.UnverifiableCommands >= 1);
+        Assert.Contains(result.Verifications,
+            verification => verification.Result == CommandVerificationResult.NotObservable &&
+                            verification.Command.ActionName == "Resolution");
+    }
 }

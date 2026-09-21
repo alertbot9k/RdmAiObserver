@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Attribute every shadow command transition as verified, failed, or not
+  observable, including timestamps and concrete failure reasons.
+- Stop counting commands without a defined next-snapshot effect as verified.
 - Added a portable command-line analyzer for running current replay and typed
   shadow-policy logic against saved matches without launching FFXIV.
 - Correctly map the explanatory `Use Jolt III and assess` recommendation to the

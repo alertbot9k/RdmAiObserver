@@ -62,7 +62,13 @@ Console.WriteLine($"Advice/action agreement: {replay.Analysis.MatchingActionCoun
 Console.WriteLine($"Planned / observe-only snapshots: {simulation.PlannedSnapshots} / {simulation.ObserveOnlySnapshots}");
 Console.WriteLine($"Simulated / rejected commands: {simulation.SimulatedCommands} / {simulation.RejectedCommands}");
 Console.WriteLine($"Verified / failed transitions: {simulation.VerifiedCommands} / {simulation.VerificationFailures}");
+Console.WriteLine($"Not observable at snapshot interval: {simulation.UnverifiableCommands}");
 Console.WriteLine($"Emergency stops: {simulation.EmergencyStops}");
+foreach (var group in simulation.Verifications
+             .Where(verification => verification.Result == CommandVerificationResult.Failed)
+             .GroupBy(verification => verification.Reason)
+             .OrderByDescending(group => group.Count()))
+    Console.WriteLine($"Transition failure: {group.Count()} x {group.Key}");
 
 if (args.Length == 2)
 {
