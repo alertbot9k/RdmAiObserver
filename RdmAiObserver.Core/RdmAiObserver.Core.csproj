@@ -23,5 +23,6 @@
     <Compile Include="../SamplePlugin/ControlLayer.cs" />
     <Compile Include="../SamplePlugin/OperationalSafety.cs" />
     <Compile Include="../SamplePlugin/PolicySimulation.cs" />
+    <Compile Include="../SamplePlugin/PolicyCorpusEvaluator.cs" />
   </ItemGroup>
 </Project>
