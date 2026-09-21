@@ -293,6 +293,9 @@ public class MainWindow : Window, IDisposable
         ImGui.TextUnformatted($"Recommendation: {recommendation.Recommendation}");
         ImGui.TextUnformatted($"Priority: {recommendation.Priority}");
         ImGui.TextWrapped($"Reason: {recommendation.Reason}");
+        var sprint = SprintEvaluator.Evaluate(state);
+        ImGui.TextUnformatted($"Mobility: {sprint.Recommendation}");
+        ImGui.TextWrapped($"Sprint reason: {sprint.Reason}");
         if (scenario != null)
         {
             var passed = string.Equals(

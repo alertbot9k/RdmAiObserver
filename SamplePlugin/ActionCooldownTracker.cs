@@ -20,7 +20,8 @@ public static class ActionCooldownTracker
         "Standard-issue Elixir",
         "Recuperate",
         "Purify",
-        "Guard"
+        "Guard",
+        "Sprint"
     };
 
     private static readonly Dictionary<string, uint> ActionIds = new(StringComparer.OrdinalIgnoreCase);

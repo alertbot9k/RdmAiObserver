@@ -21,6 +21,7 @@
     <Compile Include="../SamplePlugin/PvpActionIds.cs" />
     <Compile Include="../SamplePlugin/ObservationFacts.cs" />
     <Compile Include="../SamplePlugin/ObjectiveEvaluator.cs" />
+    <Compile Include="../SamplePlugin/SprintEvaluator.cs" />
     <Compile Include="../SamplePlugin/PolicyPlanner.cs" />
     <Compile Include="../SamplePlugin/ControlLayer.cs" />
     <Compile Include="../SamplePlugin/OperationalSafety.cs" />

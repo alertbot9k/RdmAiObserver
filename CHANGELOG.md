@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Track PvP Sprint readiness and show a separate, read-only mobility recommendation
+  for crystal travel, regrouping, isolated disengagement, and close combat.
 - Confirm territory `1116` as Crystalline Conflict from two actual-match
   recordings, allowing objective capture throughout the match when Dalamud's
   PvP UI condition is transient.
