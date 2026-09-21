@@ -45,6 +45,14 @@ public sealed class ScenarioTests
     }
 
     [Fact]
+    public void Mode_detection_recognizes_second_confirmed_live_match_territory()
+    {
+        var state = new GameState { TerritoryId = 1116 };
+
+        Assert.Equal(ObservedPvpMode.CrystallineConflict, PvpModeDetector.Detect(state));
+    }
+
+    [Fact]
     public void Mode_detection_recognizes_confirmed_crystal_with_incomplete_party()
     {
         var state = new GameState

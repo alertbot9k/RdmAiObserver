@@ -19,6 +19,7 @@ public static class PvpModeDetector
     private static readonly HashSet<uint> ConfirmedCrystallineConflictTerritories =
     [
         1034,
+        1116,
         1293
     ];
 

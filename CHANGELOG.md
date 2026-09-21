@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Confirm territory `1116` as Crystalline Conflict from two actual-match
+  recordings, allowing objective capture throughout the match when Dalamud's
+  PvP UI condition is transient.
 - Keep scanning for the Tactical Crystal while the PvP UI is active, even if
   the live party list temporarily drops below five members.
 - Treat the confirmed crystal BaseId as direct Crystalline Conflict evidence.
