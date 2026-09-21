@@ -36,6 +36,11 @@ public enum ObservationCompleteness
     Complete
 }
 
+public enum LineOfSightState { Unknown, Clear, Blocked }
+public enum ComboEvidence { None, Started, MidChain, Completed }
+public enum MitigationState { None, Guarding, Invulnerable }
+public enum ModeStrategy { Unknown, CrystallineConflict }
+
 /// <summary>
 /// Platform independent facts derived from one raw capture. Decision rules can
 /// consume this boundary without knowing how Dalamud produced the snapshot.
@@ -49,6 +54,14 @@ public sealed record ObservationFacts(
     ObservationEvidence Freshness,
     ObservationCompleteness NearbyCompleteness,
     ObservationEvidence HostilityEvidence,
+    ComboEvidence Combo,
+    MitigationState PlayerMitigation,
+    MitigationState TargetMitigation,
+    bool PlayerCrowdControlled,
+    bool TargetCrowdControlled,
+    bool TargetCastInterruptible,
+    LineOfSightState LineOfSight,
+    ModeStrategy Strategy,
     ObservedMatchPhase MatchPhase,
     bool HasPlayer,
     bool PlayerAlive,
@@ -87,6 +100,15 @@ public sealed record ObservationFacts(
             : state.NearbyCharacters.All(character => character.Relation != CombatRelation.Unknown)
                 ? ObservationEvidence.Confirmed
                 : ObservationEvidence.Observed;
+        var combo = HasStatus(player?.Statuses, "Enchanted Redoublement")
+            ? ComboEvidence.Completed
+            : HasStatus(player?.Statuses, "Enchanted Zwerchhau") || HasStatus(player?.Statuses, "Enchanted Riposte")
+                ? ComboEvidence.MidChain
+                : HasStatus(player?.Statuses, "Dualcast") ? ComboEvidence.Started : ComboEvidence.None;
+        var playerMitigation = HasStatus(player?.Statuses, "Invincibility")
+            ? MitigationState.Invulnerable : HasStatus(player?.Statuses, "Guard") ? MitigationState.Guarding : MitigationState.None;
+        var targetMitigation = HasStatus(target?.Statuses, "Invincibility")
+            ? MitigationState.Invulnerable : HasStatus(target?.Statuses, "Guard") ? MitigationState.Guarding : MitigationState.None;
         var phase = player == null
             ? ObservedMatchPhase.Loading
             : player.Hp == 0
@@ -106,6 +128,14 @@ public sealed record ObservationFacts(
             freshness,
             completeness,
             hostilityEvidence,
+            combo,
+            playerMitigation,
+            targetMitigation,
+            FindCrowdControl(player?.Statuses),
+            FindCrowdControl(target?.Statuses),
+            target?.Cast?.IsInterruptible == true,
+            LineOfSightState.Unknown,
+            mode == ObservedPvpMode.CrystallineConflict ? ModeStrategy.CrystallineConflict : ModeStrategy.Unknown,
             phase,
             player != null,
             player is { Hp: > 0 },
@@ -134,4 +164,7 @@ public sealed record ObservationFacts(
 
     private static bool HasStatus(IEnumerable<StatusSnapshot>? statuses, string name) =>
         statuses?.Any(status => string.Equals(status.Name, name, StringComparison.OrdinalIgnoreCase)) == true;
+
+    private static bool FindCrowdControl(IEnumerable<StatusSnapshot>? statuses) =>
+        statuses?.Any(status => status.Name is "Stun" or "Heavy" or "Bind" or "Silence" or "Deep Freeze" or "Miracle of Nature") == true;
 }

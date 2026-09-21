@@ -97,4 +97,29 @@ public sealed class ObservationFactsTests
         Assert.Equal(ObservationCompleteness.Complete, facts.NearbyCompleteness);
         Assert.Equal(ObservationEvidence.Confirmed, facts.HostilityEvidence);
     }
+
+    [Fact]
+    public void Facts_model_combo_mitigation_control_and_interruptible_casts()
+    {
+        var state = new GameState
+        {
+            TerritoryId = 1293,
+            Player = new PlayerSnapshot { Hp = 50000, MaxHp = 58500 },
+            Target = new TargetSnapshot
+            {
+                Hp = 50000, MaxHp = 58500,
+                Statuses = new List<StatusSnapshot> { new() { Name = "Guard" }, new() { Name = "Heavy" } },
+                Cast = new CastSnapshot { IsInterruptible = true }
+            }
+        };
+        state.Player.Statuses.Add(new StatusSnapshot { Name = "Enchanted Zwerchhau" });
+
+        var facts = ObservationFacts.From(state, DateTime.UnixEpoch);
+
+        Assert.Equal(ComboEvidence.MidChain, facts.Combo);
+        Assert.Equal(MitigationState.Guarding, facts.TargetMitigation);
+        Assert.True(facts.TargetCrowdControlled);
+        Assert.True(facts.TargetCastInterruptible);
+        Assert.Equal(LineOfSightState.Unknown, facts.LineOfSight);
+    }
 }
