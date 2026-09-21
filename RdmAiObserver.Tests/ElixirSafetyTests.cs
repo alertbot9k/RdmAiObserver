@@ -132,6 +132,7 @@ public sealed class ElixirSafetyTests
             [new RecordedGameState { State = state }], DateTime.UnixEpoch);
 
         Assert.Equal(1, report.Analysis.SnapshotCount);
+        Assert.Equal(5, report.FormatVersion);
     }
 
     [Fact]

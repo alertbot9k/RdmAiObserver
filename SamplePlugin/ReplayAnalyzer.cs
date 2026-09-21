@@ -61,7 +61,7 @@ public static class ReplayAnalyzer
             }
         }
 
-        return new ReplayReport(4, generatedAtUtc, Analyze(snapshots), events);
+        return new ReplayReport(5, generatedAtUtc, Analyze(snapshots), events);
     }
 
     public static ReplayAnalysis Analyze(IReadOnlyList<RecordedGameState> snapshots)
