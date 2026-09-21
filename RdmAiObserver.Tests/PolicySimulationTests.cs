@@ -64,5 +64,6 @@ public sealed class PolicySimulationTests
             new PolicySimulator.Options(TimeSpan.FromSeconds(1)));
 
         Assert.True(result.TimingFailures >= 1);
+        Assert.True(result.MaxFailureStreak >= 1);
     }
 }

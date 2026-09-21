@@ -14,6 +14,7 @@ public sealed record PolicySimulationResult(
     int SafetyFallbacks,
     int GameRejectedCommands,
     int TimingFailures,
+    int MaxFailureStreak,
     IReadOnlyList<ControlReceipt> Receipts)
 {
     public float AcceptancePercent => SimulatedCommands + RejectedCommands == 0
@@ -43,6 +44,8 @@ public static class PolicySimulator
         var safetyFallbacks = 0;
         var gameRejected = 0;
         var timingFailures = 0;
+        var failureStreak = 0;
+        var maxFailureStreak = 0;
         var latency = options?.CommandLatency ?? TimeSpan.Zero;
         var wasActionable = false;
         var now = startTimeUtc ?? DateTime.UtcNow;
@@ -80,6 +83,8 @@ public static class PolicySimulator
                 if (command.Timeout is { } timeout && latency > timeout)
                 {
                     timingFailures++;
+                    failureStreak++;
+                    maxFailureStreak = Math.Max(maxFailureStreak, failureStreak);
                     receipts.Add(new ControlReceipt(command, ControlResult.Rejected, "Simulated command latency exceeded its timeout window.", now));
                     recoveries++;
                     continue;
@@ -87,6 +92,8 @@ public static class PolicySimulator
                 if (!safety.TryAuthorize(command, facts, now, out var reason))
                 {
                     rejected++;
+                    failureStreak++;
+                    maxFailureStreak = Math.Max(maxFailureStreak, failureStreak);
                     receipts.Add(new ControlReceipt(command, ControlResult.Rejected, reason, now));
                     continue;
                 }
@@ -94,6 +101,8 @@ public static class PolicySimulator
                 if (!GameWouldAccept(command, facts, out var gameReason))
                 {
                     gameRejected++;
+                    failureStreak++;
+                    maxFailureStreak = Math.Max(maxFailureStreak, failureStreak);
                     receipts.Add(new ControlReceipt(command, ControlResult.Rejected, gameReason, now));
                     recoveries++;
                     continue;
@@ -103,11 +112,12 @@ public static class PolicySimulator
                 receipts.Add(receipt);
                 if (receipt.Result == ControlResult.Simulated) simulated++;
                 else if (receipt.Result == ControlResult.Rejected) rejected++;
+                if (receipt.Result == ControlResult.Simulated) failureStreak = 0;
             }
             now = recording.CapturedAtUtc;
         }
 
-        return new(recordings.Count, planned, observeOnly, simulated, rejected, recoveries, emergencyStops, safetyFallbacks, gameRejected, timingFailures, receipts);
+        return new(recordings.Count, planned, observeOnly, simulated, rejected, recoveries, emergencyStops, safetyFallbacks, gameRejected, timingFailures, maxFailureStreak, receipts);
     }
 
     private static ControlCommand ToCommand(PolicyStep step)
