@@ -90,6 +90,8 @@ public static class ReplayAnalyzer
         var expiredProcs = 0;
         var rapidDamageSnapshots = 0;
         var defensiveRecommendations = 0;
+        var freshEvidenceSnapshots = 0;
+        var incompleteEvidenceSnapshots = 0;
         var lowestHpPercent = 100f;
         bool? wasAlive = null;
         GameState? previousState = null;
@@ -100,6 +102,10 @@ public static class ReplayAnalyzer
         {
             var trend = trendTracker.Update(snapshot.State, snapshot.CapturedAtUtc);
             var recommendation = DecisionEngine.Evaluate(snapshot.State, trend);
+            var facts = ObservationFacts.From(snapshot.State, snapshot.CapturedAtUtc, snapshot.CapturedAtUtc);
+            if (facts.IsFresh) freshEvidenceSnapshots++;
+            if (!facts.HasPlayer || !facts.TargetPresent && facts.EnemiesWithin25Yalms == 0)
+                incompleteEvidenceSnapshots++;
             var observedActions = ActionInferenceEngine.Infer(
                 previousState, snapshot.State, snapshot.CapturedAtUtc);
             if (trend?.IsRapidDamage == true)
@@ -122,7 +128,6 @@ public static class ReplayAnalyzer
                 if (hpPercent <= 30f)
                     lowHpSnapshots++;
                 var isProtected = HasStatus(player.Statuses, "Invincibility");
-                var facts = ObservationFacts.From(snapshot.State, snapshot.CapturedAtUtc, snapshot.CapturedAtUtc);
                 var nearbyEnemies = facts.EnemiesWithin15Yalms;
                 var nearbyEnemiesInSpellRange = facts.EnemiesWithin25Yalms;
                 var nearbyAllies = facts.AlliesWithin15Yalms;
@@ -233,7 +238,9 @@ public static class ReplayAnalyzer
             defensiveRecommendations,
             activeSnapshots == 0 ? 0f : lowestHpPercent,
             FindMostCommon(counts),
-            FindMostCommon(actionCounts));
+            FindMostCommon(actionCounts),
+            freshEvidenceSnapshots,
+            incompleteEvidenceSnapshots);
     }
 
     private static IReadOnlyList<RecordedGameState> OrderSnapshots(IReadOnlyList<RecordedGameState> snapshots)
@@ -365,7 +372,9 @@ public sealed record ReplayAnalysis(
     int DefensiveRecommendationCount,
     float LowestHpPercent,
     string MostCommonRecommendation,
-    string MostCommonAction)
+    string MostCommonAction,
+    int FreshEvidenceSnapshotCount,
+    int IncompleteEvidenceSnapshotCount)
 {
     public float ChangesPerMinute => DurationSeconds <= 0f
         ? 0f
