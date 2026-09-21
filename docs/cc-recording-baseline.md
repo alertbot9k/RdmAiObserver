@@ -24,6 +24,12 @@ Definitions:
   most 70% or MP is at most 4,000. Recording 2 contains two consecutive samples
   from one observed Standard-issue Elixir cast (action ID `29055`).
 
+The baseline numbers above were captured before the selected-target fallback
+was added to enemy counting. Re-analysis may reduce safe-Elixir counts when a
+living selected target was absent from the nearby-character list. The raw
+recordings are not available in this repository, so these historical totals
+have not been recalculated.
+
 Calibration conclusions:
 
 1. Missing targets during actual engagements are uncommon; earlier totals were

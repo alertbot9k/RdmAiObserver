@@ -120,8 +120,8 @@ public static class ReplayAnalyzer
                 if (hpPercent <= 30f)
                     lowHpSnapshots++;
                 var isProtected = HasStatus(player.Statuses, "Invincibility");
-                var nearbyEnemies = CountNearbyEnemies(snapshot.State, 15f);
-                var nearbyEnemiesInSpellRange = CountNearbyEnemies(snapshot.State, 25f);
+                var nearbyEnemies = CombatProximity.CountEnemies(snapshot.State, 15f);
+                var nearbyEnemiesInSpellRange = CombatProximity.CountEnemies(snapshot.State, 25f);
                 var nearbyAllies = CountNearbyAllies(snapshot.State, 15f);
                 if (isProtected)
                     protectedSnapshots++;
@@ -281,23 +281,6 @@ public static class ReplayAnalyzer
         return !string.Equals(action.Name, "Recuperate", StringComparison.OrdinalIgnoreCase) ||
                action.CooldownRemainingSeconds > 2.5f ||
                action.Evidence.StartsWith("MP fell by", StringComparison.Ordinal);
-    }
-
-    private static int CountNearbyEnemies(GameState state, float range)
-    {
-        var partyNames = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var member in state.Party)
-            partyNames.Add(member.Name);
-
-        var count = 0;
-        foreach (var character in state.NearbyCharacters)
-        {
-            if (character.Hp > 0 && character.MaxHp > 0 && character.Distance <= range &&
-                !partyNames.Contains(character.Name))
-                count++;
-        }
-
-        return count;
     }
 
     private static int CountNearbyAllies(GameState state, float range)
