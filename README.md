@@ -79,3 +79,4 @@ portable checks on Linux and the plugin build on Windows. The downloaded
 Dalamud distribution and the plugin still need Windows and in-game validation
 after game or Dalamud API updates.
 
+This is strictly for observational purposes
